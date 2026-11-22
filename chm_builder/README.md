@@ -126,10 +126,25 @@ Visualizador de Ajuda do Windows (`hh.exe`), exibindo a janela `HH Parent` e o t
 > relativos ao início da área de entradas. O `libmspack` ignora essa tabela, mas o `hh.exe`
 > a utiliza; uma tabela invertida incorretamente faz o visualizador rejeitar o arquivo.
 
+## Índice binário e busca full-text
+
+O gerador preenche os blobs internos reais:
+
+- `$OBJINST` contém a tabela de 256 × 10 bytes de `objinst_table.h` e os dois objetos COM;
+  no exemplo o resultado é byte-idêntico ao blob do HHC de referência (2.715 bytes).
+- `$WWKeywordLinks/{BTree,Data,Map,Property}` é montado dos pares `Name`/`Local` do `.hhk`.
+  BTree com blocos de 2.048 bytes, 13 bytes por entrada de Data, Map e Property com oito
+  DWORDs. `$WWAssociativeLinks/Property` recebe quatro bytes zero.
+- `$FIftiMain` indexa `<title>` e `<body>` dos HTMLs. As árvores usam nós de 4.096 bytes,
+  WLC com escalas `2` e raízes `1`, `1`, `5`, bits MSB-first e ENCINT little-endian de 7 bits.
+  A entrada 4 de `#SYSTEM` anuncia `full-text` e `KLinks` quando aplicável.
+
+O parser `.hhk` captura `Name` e `Local`, e os índices de tópico são resolvidos por `#TOPICS`.
+Como validação adicional, os blobs `$WW*` e `$OBJINST` do exemplo foram comparados byte a byte
+com os do HHC, e o `$FIftiMain` foi decodificado com a semântica do leitor do FPC.
+
 ## Limitações conhecidas
 
-- `$FIftiMain`, `$OBJINST` e `$WW*` são apenas stubs de tamanho zero no diretório. O `hh.exe`
-  abre o CHM, mas a busca full-text e o índice binário de palavras-chave não funcionam.
 - Os IDs de `#URLTBL` são determinísticos (FNV-1a), diferentes dos do HHC; a navegação usa o
   índice da tabela e não é afetada.
 - A seção `[WINDOWS]` do `.hhp` não é interpretada. O gerador grava a janela padrão

@@ -19,6 +19,13 @@ struct TocEntry {
     bool hasChildren = false;
 };
 
+// Palavra-chave do .hhk, com o topico que deve ser aberto no índice binário.
+struct KeywordEntry {
+    std::string name;
+    std::string local;
+    int depth = 0;
+};
+
 struct BuildOptions {
     std::string title = " untitled";
     std::string defaultTopic = "/index.htm";
@@ -41,7 +48,7 @@ struct BuildOptions {
     std::string indexTitle = "Index";        // titulo do arquivo .hhk
 
     std::vector<TocEntry> toc;
-    std::vector<std::string> keywords;
+    std::vector<KeywordEntry> keywords;
 };
 
 // Monta um CHM ITSF v3 com secao 0 (nao comprimida) e secao 1 (LZX).

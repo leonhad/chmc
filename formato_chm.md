@@ -441,11 +441,31 @@ inversa e relativos ao início da área de entradas**. O libmspack ignora essa t
 visualizador nativo a utiliza; com os quickrefs errados o arquivo era rejeitado com
 `Não é possível abrir o arquivo`, embora todos os bytes internos fossem válidos.
 
-### 12.3 Limitações atuais
+### 12.3 Blobs internos de índice
 
-- `$FIftiMain`, `$OBJINST` e `$WW*` são registrados no diretório como arquivos de tamanho zero.
-  O `hh.exe` aceita esses stubs e abre o CHM, mas a busca full-text e o índice de palavras-chave
-  binário não são funcionais.
+Os arquivos internos de índice não são mais stubs. O gerador produz:
+
+- `$OBJINST`: dois objetos COM e a tabela de 256 × 10 bytes de `chm_builder/objinst_table.h`.
+  O resultado tem 2.715 bytes e é **byte-idêntico** ao blob de referência do HHC.
+- `$WWKeywordLinks/{BTree,Data,Map,Property}`: índice binário construído a partir dos pares
+  `Name`/`Local` do `.hhk`. O BTree usa blocos de 2.048 bytes com palavras UTF-16LE em ordem,
+  cada entrada de dados tem 13 bytes, o Map registra os blocos de listagem e o Property
+  contém os oito DWORDs esperados quando existem links.
+- `$WWAssociativeLinks/Property`: quatro bytes zero, como no HHC de referência.
+- `$FIftiMain`: índice de texto integral gerado das seções `<title>` e `<body>` dos HTMLs.
+  As palavras são minúsculas, limitadas a 99 bytes e ordenadas por `CompareStr`, com a forma
+  de título à frente da forma de corpo. As folhas e os nós de índice têm 4.096 bytes; as
+  listas de ocorrências usam WLC com escalas `2` e raízes `1`, `1` e `5`, gravadas em bits
+  MSB-first. Os inteiros comprimidos das folhas usam grupos de 7 bits em ordem little-endian.
+- A entrada 4 de `#SYSTEM` passa a anunciar `full-text` e `KLinks` quando os blobs correspondentes
+  existem.
+
+No exemplo, os quatro blobs `$WWKeywordLinks` e `$OBJINST` são idênticos aos do HHC de
+referência, e o `$FIftiMain` gerado foi percorrido com um decodificador que segue a semântica do
+leitor do FPC: 32 palavras, tópicos 0..2 e posições consistentes.
+
+### 12.4 Limitações atuais
+
 - Os IDs gravados em `#URLTBL` são determinísticos (FNV-1a), diferentes dos gerados pelo HHC.
   A navegação usa o índice da tabela, então isso não impede a abertura.
 - O parser de `.hhc`/`.hhk` cobre apenas a estrutura usual com `<UL>`, `<LI>` e

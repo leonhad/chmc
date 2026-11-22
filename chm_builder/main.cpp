@@ -274,31 +274,60 @@ bool parseHhc(const fs::path& path, std::vector<chm::TocEntry>& toc, std::string
     return true;
 }
 
-bool parseHhk(const fs::path& path, std::vector<std::string>& keywords, std::string& error) {
+bool parseHhk(const fs::path& path, std::vector<chm::KeywordEntry>& keywords,
+              std::string& error) {
     std::string text;
     if (!readText(path, text)) {
         error = "nao foi possivel ler: " + path.string();
         return false;
     }
-    std::istringstream in(text);
-    std::string line;
-    bool inLi = false;
-    std::string name;
-    auto flush = [&]() {
-        if (inLi && !name.empty()) keywords.push_back(name);
-        name.clear();
-        inLi = false;
-    };
-    while (std::getline(in, line)) {
-        const std::string low = lower(line);
-        if (low.find("<li") != std::string::npos) { flush(); inLi = true; }
-        if (low.find("</li") != std::string::npos && !inLi) inLi = true;
-        if (!inLi) continue;
+
+    std::vector<chm::KeywordEntry> stack;
+    size_t pos = 0;
+    while (pos < text.size()) {
+        const size_t open = lower(text.substr(pos)).find("<li");
+        const size_t close = lower(text.substr(pos)).find("</li");
+        const bool hasOpen = open != std::string::npos;
+        const bool hasClose = close != std::string::npos;
+
+        if (hasClose && (!hasOpen || close < open)) {
+            if (!stack.empty()) {
+                chm::KeywordEntry e = stack.back();
+                stack.pop_back();
+                if (!e.name.empty()) {
+                    e.depth = static_cast<int>(stack.size());
+                    keywords.push_back(std::move(e));
+                }
+            }
+            pos += close + 4;
+            continue;
+        }
+        if (!hasOpen) break;
+
+        const size_t at = pos + open;
+        size_t end = lower(text.substr(at)).find('>');
+        if (end == std::string::npos) break;
+        end += at + 1;
+        chm::KeywordEntry item;
+        // Os <param> do OBJECT costumam vir depois do <li>, na mesma linha.
+        size_t paramEnd = lower(text.substr(end)).find("</li");
+        if (paramEnd == std::string::npos) paramEnd = text.size();
+        else paramEnd += end;
+        const std::string block = text.substr(end, paramEnd - end);
         std::string v;
-        if (paramValue(line, "Name", v)) name = v;
-        if (low.find("</li") != std::string::npos) flush();
+        if (paramValue(block, "Name", v)) item.name = trim(v);
+        if (paramValue(block, "Local", v)) item.local = v;
+        stack.push_back(std::move(item));
+        pos = end;
     }
-    flush();
+    while (!stack.empty()) {
+        chm::KeywordEntry e = stack.back();
+        stack.pop_back();
+        if (!e.name.empty()) {
+            e.depth = static_cast<int>(stack.size());
+            keywords.push_back(std::move(e));
+        }
+    }
     return true;
 }
 
