@@ -699,14 +699,13 @@ std::vector<uint8_t> buildFtiMain(const std::vector<FtiWord>& words,
     // o WORD de espaco livre; as entradas comecam no offset 2.
     std::vector<NodeRef> level = leaves;
     size_t indexLevels = 0;
-    // TODO: o nivel de indice ainda faz o hh.exe rejeitar CHMs grandes;
-    // mantido desabilitado ate a estrutura ser totalmente compativel com o FPC.
-    while (false && level.size() > 1) {
+    while (level.size() > 1) {
         std::vector<NodeRef> next;
         std::vector<uint8_t> ib(kNodeSize, 0);
+        put16(ib.data(), 0, static_cast<uint16_t>(kNodeSize - 2)); // free space
         size_t iu = 2;
         std::string lastIndexWord;
-        auto flushIndex = [&]() {
+        auto flushIndex = [&](bool newBlockNeeded) {
             put16(ib.data(), 0, static_cast<uint16_t>(kNodeSize - iu));
             const uint32_t at = static_cast<uint32_t>(out.size());
             out.insert(out.end(), ib.begin(), ib.end());
@@ -714,12 +713,14 @@ std::vector<uint8_t> buildFtiMain(const std::vector<FtiWord>& words,
             std::fill(ib.begin(), ib.end(), 0);
             iu = 2;
             lastIndexWord.clear();
+            if (newBlockNeeded) put16(ib.data(), 0, static_cast<uint16_t>(kNodeSize - 2));
         };
         for (const NodeRef& node : level) {
             uint8_t off = 0;
             std::string part = adjustedWord(node.lastWord, off, lastIndexWord);
-            if (iu + 8 + part.size() >= kNodeSize) {
-                flushIndex();
+            const size_t need = 2 + part.size() + 4 + 2;
+            if (iu + need >= kNodeSize) {
+                flushIndex(true);
                 part = adjustedWord(node.lastWord, off, lastIndexWord);
             }
             ib[iu++] = static_cast<uint8_t>(part.size() + 1);
@@ -730,7 +731,7 @@ std::vector<uint8_t> buildFtiMain(const std::vector<FtiWord>& words,
             put16(ib.data(), iu, 0); iu += 2;
             lastIndexWord = node.lastWord;
         }
-        flushIndex();
+        flushIndex(false);
         level = std::move(next);
         ++indexLevels;
     }
