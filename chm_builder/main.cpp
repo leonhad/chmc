@@ -125,6 +125,7 @@ uint32_t parseLcid(const std::string& raw, uint32_t fallback) {
 struct Hhp {
     std::map<std::string, std::string> options;
     std::vector<std::string> files;
+    std::vector<std::string> windows;
 };
 
 bool parseHhp(const fs::path& path, Hhp& hhp, std::string& error) {
@@ -152,6 +153,8 @@ bool parseHhp(const fs::path& path, Hhp& hhp, std::string& error) {
             const size_t eq = t.find('=');
             const std::string value = trim(eq == std::string::npos ? t : t.substr(eq + 1));
             if (!value.empty()) hhp.files.push_back(value);
+        } else if (section == "windows") {
+            hhp.windows.push_back(t);
         }
     }
     return true;
@@ -160,6 +163,143 @@ bool parseHhp(const fs::path& path, Hhp& hhp, std::string& error) {
 std::string option(const Hhp& h, const char* key, const std::string& fallback = {}) {
     const auto it = h.options.find(lower(key));
     return it == h.options.end() ? fallback : it->second;
+}
+
+bool parseUint32Field(const std::string& raw, uint32_t& out) {
+    const std::string s = trim(raw);
+    if (s.empty()) return false;
+    try {
+        size_t used = 0;
+        unsigned long v = lower(s).rfind("0x", 0) == 0 ? std::stoul(s, &used, 16)
+                                                        : std::stoul(s, &used, 10);
+        if (used != s.size()) return false;
+        out = static_cast<uint32_t>(v);
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+bool parseInt32Field(const std::string& raw, int32_t& out) {
+    const std::string s = trim(raw);
+    if (s.empty()) return false;
+    try {
+        size_t used = 0;
+        long v = lower(s).rfind("0x", 0) == 0 || lower(s).rfind("-0x", 0) == 0
+                     ? std::stol(s, &used, 0)
+                     : std::stol(s, &used, 10);
+        if (used != s.size()) return false;
+        out = static_cast<int32_t>(v);
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+std::vector<std::string> splitWindowFields(const std::string& line) {
+    std::vector<std::string> fields;
+    std::string cur;
+    bool inQuote = false;
+    char quote = 0;
+    int bracketDepth = 0;
+    for (size_t i = 0; i < line.size(); ++i) {
+        const char c = line[i];
+        if (inQuote) {
+            cur.push_back(c);
+            if (c == quote) inQuote = false;
+            continue;
+        }
+        if (c == '"' || c == '\'') {
+            inQuote = true;
+            quote = c;
+            cur.push_back(c);
+            continue;
+        }
+        if (c == '[') { ++bracketDepth; cur.push_back(c); continue; }
+        if (c == ']') { if (bracketDepth > 0) --bracketDepth; cur.push_back(c); continue; }
+        if (c == ',' && bracketDepth == 0) {
+            fields.push_back(trim(cur));
+            cur.clear();
+            continue;
+        }
+        cur.push_back(c);
+    }
+    fields.push_back(trim(cur));
+    return fields;
+}
+
+std::string unquoteField(const std::string& raw) {
+    const std::string s = trim(raw);
+    if (s.size() >= 2 && ((s.front() == '"' && s.back() == '"') ||
+                          (s.front() == '\'' && s.back() == '\''))) {
+        return s.substr(1, s.size() - 2);
+    }
+    return s;
+}
+
+bool parseRectField(const std::string& raw, int32_t rect[4]) {
+    std::string s = trim(raw);
+    if (s.empty()) return false;
+    if (s.front() == '[' && s.back() == ']') s = s.substr(1, s.size() - 2);
+    std::vector<int32_t> vals;
+    size_t p = 0;
+    while (p < s.size()) {
+        while (p < s.size() && (std::isspace(static_cast<unsigned char>(s[p])) || s[p] == ',')) ++p;
+        if (p >= s.size()) break;
+        size_t e = p;
+        if (s[e] == '-' || s[e] == '+') ++e;
+        if (e + 1 < s.size() && s[e] == '0' && (s[e + 1] == 'x' || s[e + 1] == 'X')) {
+            e += 2;
+            while (e < s.size() && std::isxdigit(static_cast<unsigned char>(s[e]))) ++e;
+        } else {
+            while (e < s.size() && std::isdigit(static_cast<unsigned char>(s[e]))) ++e;
+        }
+        int32_t v = 0;
+        if (!parseInt32Field(s.substr(p, e - p), v)) return false;
+        vals.push_back(v);
+        p = e;
+    }
+    if (vals.size() != 4) return false;
+    for (int i = 0; i < 4; ++i) rect[i] = vals[i];
+    return true;
+}
+
+bool parseWindowLine(const std::string& line, chm::WindowDef& w, std::string& error) {
+    std::string s = trim(line);
+    const size_t eq = s.find('=');
+    if (eq == std::string::npos) {
+        error = "linha [WINDOWS] invalida: " + line;
+        return false;
+    }
+    w.name = trim(s.substr(0, eq));
+    const std::vector<std::string> f = splitWindowFields(s.substr(eq + 1));
+    auto strField = [&](size_t i) -> std::string {
+        return i < f.size() ? unquoteField(f[i]) : std::string();
+    };
+    auto u32Field = [&](size_t i, uint32_t& dst) {
+        if (i < f.size()) parseUint32Field(f[i], dst);
+    };
+    w.caption = strField(0);
+    w.toc = strField(1);
+    w.index = strField(2);
+    w.defaultFile = strField(3);
+    w.homeFile = strField(4);
+    w.jump1 = strField(5);
+    w.jump2 = strField(6);
+    w.urlJump1 = strField(7);
+    w.urlJump2 = strField(8);
+    u32Field(9, w.navStyle);
+    u32Field(10, w.navWidth);
+    u32Field(11, w.buttons);
+    if (f.size() > 12 && !trim(f[12]).empty()) parseRectField(f[12], w.rect);
+    u32Field(13, w.styles);
+    u32Field(14, w.exStyles);
+    u32Field(15, w.showState);
+    u32Field(16, w.navPaneClosed);
+    u32Field(17, w.defaultPane);
+    u32Field(18, w.tabPos);
+    u32Field(19, w.idNotify);
+    return !w.name.empty();
 }
 
 // ---------------------------------------------------------------------------
@@ -410,6 +550,15 @@ int main(int argc, char** argv) {
     if (!outPath.is_absolute()) outPath = fs::absolute(outPath);
     opt.compiledName = fs::path(compiledRel).stem().string();
 
+    for (const std::string& wline : hhp.windows) {
+        chm::WindowDef w;
+        std::string werr;
+        if (!parseWindowLine(wline, w, werr)) {
+            std::cerr << "Aviso: " << werr << "\n";
+            continue;
+        }
+        opt.windows.push_back(std::move(w));
+    }
     std::vector<chm::InputFile> files;
     std::set<std::string> names;
     auto addFile = [&](const std::string& rel, bool required) -> bool {
@@ -458,6 +607,14 @@ int main(int argc, char** argv) {
     }
     for (const std::string& ref : pendingAssets) addFile(ref, false);
 
+    // Garante que arquivos referenciados por [WINDOWS] sejam considerados.
+    for (const chm::WindowDef& w : opt.windows) {
+        if (!w.toc.empty()) addFile(w.toc, false);
+        if (!w.index.empty()) addFile(w.index, false);
+        if (!w.defaultFile.empty()) addFile(w.defaultFile, false);
+        if (!w.homeFile.empty()) addFile(w.homeFile, false);
+    }
+
     if (!chm::build(outPath.string(), files, opt, error)) {
         std::cerr << "Erro ao gerar CHM: " << error << "\n";
         return 1;
@@ -466,6 +623,7 @@ int main(int argc, char** argv) {
     std::cout << "CHM gerado: " << outPath << "\n"
               << "  arquivos: " << files.size()
               << ", sumario: " << opt.toc.size()
-              << ", palavras-chave: " << opt.keywords.size() << "\n";
+              << ", palavras-chave: " << opt.keywords.size()
+              << ", janelas: " << opt.windows.size() << "\n";
     return 0;
 }

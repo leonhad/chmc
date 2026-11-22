@@ -408,9 +408,11 @@ a partir de arquivos pré-existentes. O fluxo é:
 4. gravar a seção 0 (`NameList`, `ControlData`, `SpanInfo`, `ResetTable`, `Content`);
 5. construir o diretório PMGL/PMGI e os cabeçalhos ITSF/ITSP.
 
-A seção `[WINDOWS]` do `.hhp` **não é interpretada**: o gerador grava a janela padrão
-compatível com o `hh.exe`. Incluir estilos explícitos nessa seção pode fazer o visualizador
-fechar imediatamente; por isso o exemplo não declara `[WINDOWS]`.
+A seção `[WINDOWS]` do `.hhp` é interpretada para janelas padrão (`HH_WINTYPE`): nome,
+título, TOC/índice, tópico padrão/home, estilos do painel, largura, botões, posição,
+estilos Win32/estendidos, estado de exibição e campos de navegação comuns. O gerador
+calcula `fsValidMembers` quando não informado. *Embedded windows* avançadas/tipos
+especiais não são suportados.
 
 ### 12.1 Compilação e uso
 
@@ -473,8 +475,8 @@ leitor do FPC: 32 palavras, tópicos 0..2 e posições consistentes.
 - As árvores Huffman são fixas e completas, não adaptativas por frequência. Isso foi uma
   decisão deliberada: elas são válidas para o perfil CHM e eliminaram divergências na
   codificação delta do pretree em arquivos multi-frame.
-- Não há suporte a ActiveX, scripts de navegação, *embedded windows* avançadas nem à seção
-  `[WINDOWS]` do `.hhp`.
+- Não há suporte a ActiveX, scripts de navegação nem a *embedded windows* avançadas.
+  A seção `[WINDOWS]` do `.hhp` tem suporte básico para janelas padrão.
 
 ---
 

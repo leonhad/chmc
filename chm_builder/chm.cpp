@@ -793,14 +793,60 @@ Internal buildInternal(const BuildOptions& opt,
     };
 
     StringTable st;
-    const uint32_t sWindow  = st.add(opt.defaultWindow);
-    const uint32_t sTitle   = st.add(opt.title);
-    const uint32_t sHhc     = st.add(opt.contentsFile);
-    const uint32_t sHhk     = st.add(opt.indexFile);
-    const uint32_t sDefault = st.add(stripSlash(opt.defaultTopic));
-    // O compilador da Microsoft inclui o valor de fsValidMembers em #STRINGS.
-    // Ele e usado por versoes antigas do hh.exe ao localizar a janela inicial.
-    const uint32_t sValidFlags = st.add("0x4238");
+    auto stAddFile = [&](const std::string& s) -> uint32_t {
+        if (s.empty()) return 0;
+        return st.add(stripSlash(s));
+    };
+
+    // Janelas: usa [WINDOWS] do .hhp quando presente; caso contrário, gera uma
+    // janela padrão compatível com hh.exe. Embedded windows avançadas não são
+    // suportadas.
+    std::vector<WindowDef> windows = opt.windows;
+    if (windows.empty()) {
+        WindowDef w;
+        w.name = opt.defaultWindow.empty() ? "main" : opt.defaultWindow;
+        w.caption = opt.title;
+        w.toc = opt.contentsFile;
+        w.index = opt.indexFile;
+        w.defaultFile = stripSlash(opt.defaultTopic);
+        w.homeFile = stripSlash(opt.defaultTopic);
+        windows.push_back(std::move(w));
+    }
+    for (WindowDef& w : windows) {
+        if (w.name.empty()) w.name = opt.defaultWindow.empty() ? "main" : opt.defaultWindow;
+        if (w.caption.empty()) w.caption = opt.title;
+        if (w.defaultFile.empty()) w.defaultFile = stripSlash(opt.defaultTopic);
+        if (w.homeFile.empty()) w.homeFile = w.defaultFile;
+        // fsValidMembers: seta bits conforme campos presentes/explicitamente dados.
+        // Semântica baseada na tabela HH_WINTYPE observada em CHMs reais.
+        uint32_t v = w.validFlags;
+        if (v == 0) {
+            if (w.navStyle != 0) v |= 0x00000002;
+            if (w.styles != 0) v |= 0x00000004;
+            if (w.exStyles != 0) v |= 0x00000008;
+            if (w.rect[0] || w.rect[1] || w.rect[2] || w.rect[3]) v |= 0x00000010;
+            if (w.navWidth != 0) v |= 0x00000020;
+            if (w.showState != 0) v |= 0x00000040;
+            if (w.buttons != 0) v |= 0x00000100;
+            if (w.navPaneClosed != 0) v |= 0x00000200;
+            if (w.tabPos != 0) v |= 0x00000400;
+            if (w.defaultPane != 0) v |= 0x00002000;
+            w.validFlags = v;
+        }
+    }
+
+    // Seleciona janela padrão pelo Default Window=.
+    size_t defaultWindowIndex = 0;
+    for (size_t i = 0; i < windows.size(); ++i) {
+        if (lower(windows[i].name) == lower(opt.defaultWindow)) {
+            defaultWindowIndex = i;
+            break;
+        }
+    }
+    const WindowDef& dw = windows[defaultWindowIndex];
+
+    (void)dw;
+    (void)stAddFile;
 
     // --- Topicos: HTML do sumario, HTML solto, sumario.hhc e indice.hhk -----
     struct Topic {
@@ -976,21 +1022,50 @@ Internal buildInternal(const BuildOptions& opt,
     put32(in.idxhdr, 0x48, 0);
 
     // --- #WINDOWS -----------------------------------------------------------
-    in.windows.assign(8 + 196, 0);
-    put32(in.windows, 0, 1);
-    put32(in.windows, 4, 196);
-    put32(in.windows, 8, 196);              // cbStruct
-    put32(in.windows, 8 + 2 * 4, sWindow);  // nome da janela
-    put32(in.windows, 8 + 3 * 4, opt.winValidFlags);
-    put32(in.windows, 8 + 4 * 4, opt.winArg10);
-    put32(in.windows, 8 + 5 * 4, sTitle);
-    put32(in.windows, 8 + 24 * 4, sHhc);
-    put32(in.windows, 8 + 25 * 4, sHhk);
-    put32(in.windows, 8 + 26 * 4, sDefault);
-    put32(in.windows, 8 + 27 * 4, sDefault);
-    put32(in.windows, 8 + 28 * 4, opt.winArg12);
-    // O HHC aponta pszUrlJump2 para a string de fsValidMembers em #STRINGS.
-    put32(in.windows, 8 + 0xA8, sValidFlags);
+    // Formato HH_WINTYPE (196 bytes por entrada, CHM 1.1+). Strings são offsets
+    // em #STRINGS. Embedded windows avançadas não são suportadas.
+    const uint32_t winEntrySize = 196;
+    in.windows.assign(8 + winEntrySize * windows.size(), 0);
+    put32(in.windows, 0, static_cast<uint32_t>(windows.size()));
+    put32(in.windows, 4, winEntrySize);
+    for (size_t i = 0; i < windows.size(); ++i) {
+        const WindowDef& w = windows[i];
+        const size_t off = 8 + i * winEntrySize;
+        auto W32 = [&](size_t fieldOff, uint32_t v) { put32(in.windows, off + fieldOff, v); };
+        auto WSTR = [&](size_t fieldOff, const std::string& s) {
+            if (!s.empty()) put32(in.windows, off + fieldOff, st.add(s));
+        };
+        auto WFILE = [&](size_t fieldOff, const std::string& s) {
+            if (!s.empty()) put32(in.windows, off + fieldOff, st.add(stripSlash(s)));
+        };
+
+        W32(0x00, winEntrySize);                 // cbStruct
+        W32(0x04, 0);                            // fUniCodeStrings
+        WSTR(0x08, w.name);                      // pszType
+        W32(0x0C, w.validFlags);                 // fsValidMembers
+        W32(0x10, w.navStyle);                   // fsWinProperties
+        WSTR(0x14, w.caption.empty() ? opt.title : w.caption); // pszCaption
+        W32(0x18, w.styles);                     // dwStyles
+        W32(0x1C, w.exStyles);                   // dwExStyles
+        for (int r = 0; r < 4; ++r) {
+            put32(in.windows, off + 0x20 + r * 4, static_cast<uint32_t>(w.rect[r]));
+        }
+        W32(0x30, w.showState);                  // nShowState
+        W32(0x4C, w.navWidth);                   // iNavWidth
+        WFILE(0x60, w.toc);                      // pszToc
+        WFILE(0x64, w.index);                    // pszIndex
+        WFILE(0x68, w.defaultFile);              // pszFile
+        WFILE(0x6C, w.homeFile);                 // pszHome
+        W32(0x70, w.buttons);                    // fsToolBarFlags
+        W32(0x74, w.navPaneClosed);              // fNotExpanded
+        W32(0x78, w.defaultPane);                // curNavType
+        W32(0x7C, w.tabPos);                     // tabpos
+        W32(0x80, w.idNotify);                   // idNotify
+        WSTR(0x9C, w.jump1);                     // pszJump1
+        WSTR(0xA0, w.jump2);                     // pszJump2
+        WSTR(0xA4, w.urlJump1);                  // pszUrlJump1
+        WSTR(0xA8, w.urlJump2);                  // pszUrlJump2
+    }
 
     // --- Indice binario de palavras-chave ($WW*) ----------------------------
     std::map<std::string, uint32_t> topicByLocal;
