@@ -1,0 +1,11 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+<HEAD><META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=windows-1252"><TITLE>Indice</TITLE></HEAD>
+<BODY>
+<UL>
+  <LI> <OBJECT type="text/sitemap"><param name="Name" value="primeiro"><param name="Local" value="topic1.htm"></OBJECT>
+  <LI> <OBJECT type="text/sitemap"><param name="Name" value="segundo"><param name="Local" value="topic2.htm"></OBJECT>
+  <LI> <OBJECT type="text/sitemap"><param name="Name" value="topico"><param name="Local" value="index.htm"></OBJECT>
+</UL>
+</BODY>
+</HTML>
