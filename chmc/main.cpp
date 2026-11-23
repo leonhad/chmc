@@ -323,23 +323,24 @@ namespace {
     bool findAttr(const std::string &line, const std::string &name, std::string &value) {
         size_t pos = 0;
         const std::string needle = lower(name);
-        while ((pos = lower(line).find(needle, pos)) != std::string::npos) {
+        const std::string lowLine = lower(line);
+        while ((pos = lowLine.find(needle, pos)) != std::string::npos) {
             size_t p = pos + needle.size();
             while (p < line.size() && std::isspace(static_cast<unsigned char>(line[p]))) ++p;
             if (p >= line.size() || line[p] != '=') {
-                ++pos;
+                pos += needle.size();
                 continue;
             }
             ++p;
             while (p < line.size() && std::isspace(static_cast<unsigned char>(line[p]))) ++p;
             if (p >= line.size() || (line[p] != '"' && line[p] != '\'')) {
-                ++pos;
+                pos += needle.size();
                 continue;
             }
             const char quote = line[p++];
             const size_t end = line.find(quote, p);
             if (end == std::string::npos) {
-                ++pos;
+                pos += needle.size();
                 continue;
             }
             value = decodeEntities(line.substr(p, end - p));
@@ -466,45 +467,6 @@ namespace {
         return true;
     }
 
-    bool findAttrRange(const std::string &s, const std::string &low,
-                              const size_t start, const size_t limit,
-                              const char *attr, std::string &value) {
-        const size_t alen = std::strlen(attr);
-        size_t pos = start;
-        while (pos < limit) {
-            pos = low.find(attr, pos);
-            if (pos == std::string::npos || pos >= limit) return false;
-            if (pos > 0) {
-                const char before = s[pos - 1];
-                if (!std::isspace(static_cast<unsigned char>(before)) && before != '<' && before != '/') {
-                    ++pos;
-                    continue;
-                }
-            }
-            size_t p = pos + alen;
-            while (p < limit && std::isspace(static_cast<unsigned char>(s[p]))) ++p;
-            if (p >= limit || s[p] != '=') {
-                ++pos;
-                continue;
-            }
-            ++p;
-            while (p < limit && std::isspace(static_cast<unsigned char>(s[p]))) ++p;
-            if (p >= limit || (s[p] != '"' && s[p] != '\'')) {
-                ++pos;
-                continue;
-            }
-            const char q = s[p++];
-            const size_t end = s.find(q, p);
-            if (end == std::string::npos || end > limit) {
-                ++pos;
-                continue;
-            }
-            value = decodeEntities(s.substr(p, end - p));
-            return true;
-        }
-        return false;
-    }
-
     bool parseHhk(const fs::path &path, std::vector<chm::KeywordEntry> &keywords,
                   std::string &error) {
         std::string text;
@@ -512,97 +474,43 @@ namespace {
             error = "could not read: " + path.string();
             return false;
         }
-        std::string low = text;
-        for (char &c: low) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        std::istringstream in(text);
+        std::string line;
+        int ulDepth = 0;
+        chm::KeywordEntry current;
+        bool inLi = false;
+        auto flush = [&] {
+            if (!inLi) return;
+            current.name = trim(current.name);
+            if (!current.local.empty() || !current.name.empty()) keywords.push_back(current);
+            current = chm::KeywordEntry();
+            inLi = false;
+        };
 
-        std::vector<chm::KeywordEntry> stack;
-        size_t pos = 0;
-        while (pos < text.size()) {
-            const size_t open = low.find("<li", pos);
-            const size_t close = low.find("</li", pos);
-            const bool hasOpen = open != std::string::npos;
-            const bool hasClose = close != std::string::npos;
-
-            if (hasClose && (!hasOpen || close < open)) {
-                if (!stack.empty()) {
-                    chm::KeywordEntry e = stack.back();
-                    stack.pop_back();
-                    if (!e.name.empty()) {
-                        e.depth = static_cast<int>(stack.size());
-                        keywords.push_back(std::move(e));
-                    }
+        while (std::getline(in, line)) {
+            const std::string low = lower(line);
+            for (size_t pos = 0; (pos = low.find('<', pos)) != std::string::npos;) {
+                const size_t end = low.find('>', pos);
+                if (end == std::string::npos) break;
+                if (const std::string tag = trim(low.substr(pos + 1, end - pos - 1)); tag.rfind("/ul", 0) == 0) {
+                    ulDepth = std::max(0, ulDepth - 1);
+                } else if (tag.rfind("ul", 0) == 0) {
+                    ++ulDepth;
+                } else if (tag.rfind("/li", 0) == 0) {
+                    flush();
+                } else if (tag.rfind("li", 0) == 0) {
+                    flush();
+                    current.depth = std::max(0, ulDepth - 1);
+                    inLi = true;
                 }
-                pos = close + 4;
-                continue;
+                pos = end + 1;
             }
-            if (!hasOpen) break;
-
-            const size_t at = open;
-            size_t endTag = low.find('>', at);
-            if (endTag == std::string::npos) break;
-            endTag += 1;
-            chm::KeywordEntry item;
-            size_t paramEnd = text.size();
-            for (const char *tag: {"</li", "<li", "</ul", "</ol", "</body", "</html"}) {
-                size_t p = low.find(tag, endTag);
-                if (p != std::string::npos && p < paramEnd) paramEnd = p;
-            }
-
-            size_t pp = endTag;
-            while (pp < paramEnd) {
-                size_t np = low.find("name", pp);
-                if (np == std::string::npos || np >= paramEnd) break;
-                if (np > 0) {
-                    const char before = text[np - 1];
-                    if (!std::isspace(static_cast<unsigned char>(before)) && before != '<' && before != '/') {
-                        pp = np + 1;
-                        continue;
-                    }
-                }
-                size_t p2 = np + 4;
-                while (p2 < paramEnd && std::isspace(static_cast<unsigned char>(text[p2]))) ++p2;
-                if (p2 >= paramEnd || text[p2] != '=') {
-                    pp = np + 4;
-                    continue;
-                }
-                ++p2;
-                while (p2 < paramEnd && std::isspace(static_cast<unsigned char>(text[p2]))) ++p2;
-                if (p2 >= paramEnd || (text[p2] != '"' && text[p2] != '\'')) {
-                    pp = np + 4;
-                    continue;
-                }
-                const char q = text[p2++];
-                const size_t ne = text.find(q, p2);
-                if (ne == std::string::npos || ne > paramEnd) {
-                    pp = np + 4;
-                    continue;
-                }
-
-                const size_t nlen = ne - p2;
-                const bool isName = nlen == 4 && low.compare(p2, 4, "name") == 0;
-                const bool isLocal = nlen == 5 && low.compare(p2, 5, "local") == 0;
-                const size_t afterName = ne + 1;
-                if (isName || isLocal) {
-                    std::string val;
-                    if (findAttrRange(text, low, afterName, paramEnd, "value", val)) {
-                        if (isName) item.name = trim(val);
-                        else item.local = val;
-                    }
-                }
-                pp = afterName;
-            }
-
-            stack.push_back(std::move(item));
-            pos = endTag;
+            if (!inLi) continue;
+            std::string v;
+            if (paramValue(line, "Name", v)) current.name = v;
+            if (paramValue(line, "Local", v)) current.local = internalName(v);
         }
-        while (!stack.empty()) {
-            chm::KeywordEntry e = stack.back();
-            stack.pop_back();
-            if (!e.name.empty()) {
-                e.depth = static_cast<int>(stack.size());
-                keywords.push_back(std::move(e));
-            }
-        }
+        flush();
         return true;
     }
 
