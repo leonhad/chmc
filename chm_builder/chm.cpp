@@ -1132,8 +1132,51 @@ namespace chm {
             put32(in.idxhdr, 0x48, 0);
 
             // --- #WINDOWS -----------------------------------------------------------
-            // Formato HH_WINTYPE (196 bytes por entrada, CHM 1.1+). Strings são offsets
-            // em #STRINGS. Embedded windows avançadas não são suportadas.
+            // Formato HH_WINTYPE completo conforme htmlhelp.h e chmspec.
+            // Layout baseado na estrutura file_wintype do ReactOS hhctrl:
+            // Campos de ponteiros (HWND, LPCTSTR) são serializados como DWORD offsets
+            // em #STRINGS. Campos avançados (rcHTML, tabOrder, cHistory, rcMinSize,
+            // cbInfoTypes, pszCustomTabs) suportam embedded windows e tipos especiais
+            // do CHM 1.1+.
+            //
+            // Offset  Tipo          Campo (htmlhelp.h)
+            // 0x00    int           cbStruct
+            // 0x04    BOOL          fUniCodeStrings
+            // 0x08    DWORD         pszType (offset em #STRINGS)
+            // 0x0C    DWORD         fsValidMembers
+            // 0x10    DWORD         fsWinProperties
+            // 0x14    DWORD         pszCaption (offset em #STRINGS)
+            // 0x18    DWORD         dwStyles
+            // 0x1C    DWORD         dwExStyles
+            // 0x20    RECT          rcWindowPos (16 bytes)
+            // 0x30    int           nShowState
+            // 0x34    RECT          rcHTML (16 bytes) — coordenadas do painel HTML
+            // 0x44    DWORD         hwndHelp (runtime, gravado como 0)
+            // 0x48    DWORD         hwndCaller (runtime, gravado como 0)
+            // 0x4C    int           iNavWidth
+            // 0x50    DWORD         hwndToolBar (runtime, gravado como 0)
+            // 0x54    DWORD         hwndNavigation (runtime, gravado como 0)
+            // 0x58    DWORD         hwndHTML (runtime, gravado como 0)
+            // 0x5C    DWORD         pszToc (offset em #STRINGS)
+            // 0x60    DWORD         pszIndex (offset em #STRINGS)
+            // 0x64    DWORD         pszFile (offset em #STRINGS)
+            // 0x68    DWORD         pszHome (offset em #STRINGS)
+            // 0x6C    DWORD         fsToolBarFlags
+            // 0x70    BOOL          fNotExpanded
+            // 0x74    int           curNavType
+            // 0x78    int           tabpos
+            // 0x7C    int           idNotify
+            // 0x80    BYTE[17]     tabOrder
+            // 0x91    int           cHistory
+            // 0x95    DWORD         pszJump1 (offset em #STRINGS) — padding a 0x98
+            // 0x98    DWORD         pszJump2 (offset em #STRINGS)
+            // 0x9C    DWORD         pszUrlJump1 (offset em #STRINGS)
+            // 0xA0    DWORD         pszUrlJump2 (offset em #STRINGS)
+            // 0xA4    RECT          rcMinSize (16 bytes) — tamanho mínimo da janela
+            // 0xB4    int           cbInfoTypes
+            // 0xB8    DWORD         pszCustomTabs (offset em #STRINGS)
+            // Total: 0xBC (188 bytes) para CHM 1.0, 0xC0 (192) com padding
+            // O HTML Help Workshop grava 196 bytes (0xC4) com padding final.
             const uint32_t winEntrySize = 196;
             in.windows.assign(8 + winEntrySize * windows.size(), 0);
             put32(in.windows, 0, windows.size());
@@ -1149,6 +1192,7 @@ namespace chm {
                     if (!s.empty()) put32(in.windows, off + fieldOff, st.add(stripSlash(s)));
                 };
 
+                // --- Campos básicos (presentes em todas as versões) ---------------
                 W32(0x00, winEntrySize); // cbStruct
                 W32(0x04, 0); // fUniCodeStrings
                 WSTR(0x08, w.name); // pszType
@@ -1161,20 +1205,59 @@ namespace chm {
                     put32(in.windows, off + 0x20 + r * 4, static_cast<uint32_t>(w.rect[r]));
                 }
                 W32(0x30, w.showState); // nShowState
+
+                // --- rcHTML: coordenadas do painel de tópicos (embedded windows) --
+                for (int r = 0; r < 4; ++r) {
+                    put32(in.windows, off + 0x34 + r * 4, static_cast<uint32_t>(w.rcHTML[r]));
+                }
+
+                // --- Handles de janela (runtime, sempre 0 no arquivo) -----------
+                W32(0x44, 0); // hwndHelp
+                W32(0x48, 0); // hwndCaller
                 W32(0x4C, w.navWidth); // iNavWidth
-                WFILE(0x60, w.toc); // pszToc
-                WFILE(0x64, w.index); // pszIndex
-                WFILE(0x68, w.defaultFile); // pszFile
-                WFILE(0x6C, w.homeFile); // pszHome
-                W32(0x70, w.buttons); // fsToolBarFlags
-                W32(0x74, w.navPaneClosed); // fNotExpanded
-                W32(0x78, w.defaultPane); // curNavType
-                W32(0x7C, w.tabPos); // tabpos
-                W32(0x80, w.idNotify); // idNotify
-                WSTR(0x9C, w.jump1); // pszJump1
-                WSTR(0xA0, w.jump2); // pszJump2
-                WSTR(0xA4, w.urlJump1); // pszUrlJump1
-                WSTR(0xA8, w.urlJump2); // pszUrlJump2
+                W32(0x50, 0); // hwndToolBar
+                W32(0x54, 0); // hwndNavigation
+                W32(0x58, 0); // hwndHTML
+
+                // --- Arquivos de navegação ---------------------------------------
+                WFILE(0x5C, w.toc); // pszToc
+                WFILE(0x60, w.index); // pszIndex
+                WFILE(0x64, w.defaultFile); // pszFile
+                WFILE(0x68, w.homeFile); // pszHome
+
+                // --- Toolbar e navegação -----------------------------------------
+                W32(0x6C, w.buttons); // fsToolBarFlags
+                W32(0x70, w.navPaneClosed); // fNotExpanded
+                W32(0x74, w.defaultPane); // curNavType
+                W32(0x78, w.tabPos); // tabpos
+                W32(0x7C, w.idNotify); // idNotify
+
+                // --- tabOrder: ordem das abas (17 bytes) -------------------------
+                size_t tabOrderOff = off + 0x80;
+                for (int t = 0; t < 17; ++t) {
+                    in.windows[tabOrderOff + t] = w.tabOrder[t];
+                }
+
+                // --- cHistory: número de itens de histórico ----------------------
+                put32(in.windows, off + 0x91, static_cast<uint32_t>(w.cHistory));
+
+                // --- Jump buttons ------------------------------------------------
+                WSTR(0x98, w.jump1); // pszJump1
+                WSTR(0x9C, w.jump2); // pszJump2
+                WSTR(0xA0, w.urlJump1); // pszUrlJump1
+                WSTR(0xA4, w.urlJump2); // pszUrlJump2
+
+                // --- Campos avançados (CHM 1.1+): embedded windows e tipos especiais
+                // rcMinSize: tamanho mínimo da janela ----------------------------
+                for (int r = 0; r < 4; ++r) {
+                    put32(in.windows, off + 0xB4 + r * 4, static_cast<uint32_t>(w.rcMinSize[r]));
+                }
+
+                // cbInfoTypes: tamanho de paInfoTypes (para tipos de informação) --
+                W32(0xC4, static_cast<uint32_t>(w.cbInfoTypes)); // cbInfoTypes
+
+                // pszCustomTabs: rótulos das abas personalizadas ------------------
+                WSTR(0xC8, w.customTabs); // pszCustomTabs
             }
 
             // --- Índice binário de palavras-chave ($WW*) ----------------------------

@@ -137,15 +137,14 @@ com os do HHC, e o `$FIftiMain` foi decodificado com a semântica do leitor do F
 
 - Os IDs de `#URLTBL` são determinísticos (FNV-1a), diferentes dos do HHC; a navegação usa o
   índice da tabela e não é afetada.
-- A seção `[WINDOWS]` do `.hhp` é interpretada para janelas padrão (campos comuns
-  de `HH_WINTYPE`: título, TOC, índice, tópico padrão/home, posição, estilos, botões
-  e painel de navegação). *Embedded windows* avançadas/tipos especiais não são suportados.
 - O parser de `.hhc` / `.hhk` reconhece `<UL>`, `<LI>` e `<OBJECT type="text/sitemap">`
   com parâmetros `Name` e `Local`; não é um parser HTML completo.
 - Árvores Huffman fixas são usadas em vez de árvores ótimas por frequência. Isso aumenta
   ligeiramente o tamanho comprimido, mas evita bugs de codificação delta do pretree e foi
   validado com `lzxd.c` em arquivos de múltiplos frames.
-- Não há suporte a ActiveX, macros, *embedded windows* personalizadas nem scripts
-  de navegação especiais.
+- Não há suporte a ActiveX, macros e scripts de navegação especiais.
+  - *Embedded windows* personalizadas são suportadas via campos avançados de
+  `HH_WINTYPE` (`rcHTML`, `tabOrder`, `cHistory`, `rcMinSize`, `cbInfoTypes`,
+  `pszCustomTabs`).
 
 Para detalhes binários, consulte `formato_chm.md` e `formato_lzx.md`.

@@ -411,8 +411,11 @@ a partir de arquivos pré-existentes. O fluxo é:
 A seção `[WINDOWS]` do `.hhp` é interpretada para janelas padrão (`HH_WINTYPE`): nome,
 título, TOC/índice, tópico padrão/home, estilos do painel, largura, botões, posição,
 estilos Win32/estendidos, estado de exibição e campos de navegação comuns. O gerador
-calcula `fsValidMembers` quando não informado. *Embedded windows* avançadas/tipos
-especiais não são suportados.
+calcula `fsValidMembers` quando não informado. A estrutura `#WINDOWS` agora inclui
+todos os campos de `HH_WINTYPE`, incluindo *embedded windows* avançadas e tipos
+especiais: `rcHTML` (coordenadas do painel HTML), `tabOrder` (ordem das abas),
+`cHistory` (itens de histórico), `rcMinSize` (tamanho mínimo), `cbInfoTypes`
+(tipos de informação) e `pszCustomTabs` (abas personalizadas).
 
 ### 12.1 Compilação e uso
 
@@ -475,8 +478,10 @@ leitor do FPC: 32 palavras, tópicos 0..2 e posições consistentes.
 - As árvores Huffman são fixas e completas, não adaptativas por frequência. Isso foi uma
   decisão deliberada: elas são válidas para o perfil CHM e eliminaram divergências na
   codificação delta do pretree em arquivos multi-frame.
-- Não há suporte a ActiveX, scripts de navegação nem a *embedded windows* avançadas.
-  A seção `[WINDOWS]` do `.hhp` tem suporte básico para janelas padrão.
+- Não há suporte a ActiveX e scripts de navegação.
+  - A seção `[WINDOWS]` do `.hhp` suporta janelas padrão e avançadas, incluindo
+    todos os campos de `HH_WINTYPE` (rcHTML, tabOrder, cHistory, rcMinSize,
+    cbInfoTypes, pszCustomTabs) conforme o padrão CHM 1.1+.
 
 ---
 
