@@ -168,7 +168,7 @@ std::vector<uint8_t> computeLengths(const std::vector<uint32_t>& freq, const int
             // allow overshoot fix not possible; break
             break;
         }
-        k += (1 << (maxBits - len[best]));
+        k += 1 << (maxBits - len[best]);
         len[best]--;
     }
     // Final exact fix
@@ -211,7 +211,7 @@ Huffman buildHuffman(const std::vector<uint8_t>& len) {
 
     int kraft = 0;
     for (const uint8_t l : len) if (l > 0) kraft += 1 << (16 - l);
-    h.complete = (kraft == (1 << 16));
+    h.complete = kraft == 1 << 16;
     return h;
 }
 
@@ -256,9 +256,9 @@ struct LzState {
 };
 
 uint32_t hash3(const uint8_t* p) {
-    return (((static_cast<uint32_t>(p[0]) << 8) |
-             (static_cast<uint32_t>(p[1]) << 4) |
-             static_cast<uint32_t>(p[2])) & 0xFFFFu);
+    return ((static_cast<uint32_t>(p[0]) << 8) |
+            (static_cast<uint32_t>(p[1]) << 4) |
+            static_cast<uint32_t>(p[2])) & 0xFFFFu;
 }
 
 // Tokeniza um intervalo de reset (2 frames, 64 KiB). O historico LZ e
@@ -299,7 +299,7 @@ std::vector<Token> tokenizeFrame(const uint8_t* data, size_t len,
         if (p + 2 >= len) return;
         const uint32_t h = hash3(data + p);
         int cand = head[h];
-        const size_t frameEnd = ((p / kFrameSize) + 1) * kFrameSize;
+        const size_t frameEnd = (p / kFrameSize + 1) * kFrameSize;
         const int maxLen = static_cast<int>(std::min<size_t>(
             kMaxMatch, std::min<size_t>(len - p, frameEnd - p)));
         int examined = 0;
@@ -348,7 +348,7 @@ std::vector<Token> tokenizeFrame(const uint8_t* data, size_t len,
             uint32_t formatted = 0;
             const int slot = lz.slotFor(bestOffset, formatted);
             const int extra = extraBitsForSlot(slot);
-            const uint32_t footer = (slot < 3) ? 0u : (formatted - base[slot]);
+            const uint32_t footer = slot < 3 ? 0u : formatted - base[slot];
             const int lenHeader = std::min(bestLen - 2, 7);
 
             Token t;
@@ -479,7 +479,7 @@ void encodeInterval(const std::vector<uint8_t>& data, BitWriter& bw,
     size_t emitted = 0;
 
     for (const Token& t : tokens) {
-        if ((emitted % kFrameSize) == 0) {
+        if (emitted % kFrameSize == 0) {
             // Cada frame começa com seu próprio bloco VERBATIM de 32 KiB.
             // As árvores são transmitidas em todos os blocos, mas os deltas
             // são relativos ao bloco anterior (zerados no reset do intervalo).
@@ -502,7 +502,7 @@ void encodeInterval(const std::vector<uint8_t>& data, BitWriter& bw,
 
         // O decodificador realinha a entrada em word de 16 bits no fim de
         // cada frame de 32 KiB.
-        if ((emitted % kFrameSize) == 0) {
+        if (emitted % kFrameSize == 0) {
             bw.align16();
             if (emitted == kFrameSize) midOffset = static_cast<uint64_t>(bw.size());
         }
@@ -513,13 +513,8 @@ void encodeInterval(const std::vector<uint8_t>& data, BitWriter& bw,
 
 } // namespace
 
-Result compress(const std::vector<uint8_t>& input, int windowBits) {
+Result compress(const std::vector<uint8_t>& input) {
     Result out;
-    if (windowBits != kWindowBits) {
-        // O perfil CHM usa exclusivamente 64 KiB. Mantemos o parametro para
-        // documentar a restrição, sem silenciosamente gerar um fluxo inválido.
-        windowBits = kWindowBits;
-    }
 
     constexpr size_t intervalSize = static_cast<size_t>(kFrameSize) * kResetFrames;
     const size_t intervals = (input.size() + intervalSize - 1) / intervalSize;

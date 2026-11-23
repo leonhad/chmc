@@ -394,7 +394,7 @@ namespace chm {
 
             // Níveis de índice, quando há mais de um bloco de listagem.
             std::vector<std::vector<uint8_t> > allBlocks;
-            allBlocks.emplace_back(out.btree.begin(), out.btree.begin() + static_cast<size_t>(leaves.size() * 2048));
+            allBlocks.emplace_back(out.btree.begin(), out.btree.begin() + static_cast<std::ptrdiff_t>(leaves.size()) * 2048);
             struct IndexItem {
                 std::vector<uint8_t> entry;
                 uint32_t block = 0;
@@ -484,8 +484,7 @@ namespace chm {
                 }
                 if (cp == 0 || cp > 0x10FFFF) return " ";
                 std::string r;
-                if (cp < 0x80) r.push_back(static_cast<char>(cp));
-                else if (cp <= 0xFF) r.push_back(static_cast<char>(cp));
+                if (cp <= 0xFF) r.push_back(static_cast<char>(cp));
                 else r.push_back(' ');
                 return r;
             }

@@ -1,3 +1,5 @@
+#pragma once
+
 // Tabela de correspondencia de caracteres usada por $OBJINST.
 // Compatível com a tabela ObjInstEntries[256][10] do HTML Help.
 static const uint8_t kObjInstTable[256][10] = {

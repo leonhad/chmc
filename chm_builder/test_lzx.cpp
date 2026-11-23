@@ -6,13 +6,12 @@ extern "C" {
 #include <lzx.h>
 }
 
-#include <cstdio>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     const std::string outBase = argc > 1 ? argv[1] : "lzx_teste";
 
     const int total = argc > 2 ? std::stoi(argv[2]) : 75000;
@@ -29,20 +28,20 @@ int main(int argc, char** argv) {
     const std::string compPath = outBase + ".lzx";
     {
         std::ofstream f(compPath, std::ios::binary | std::ios::trunc);
-        f.write(reinterpret_cast<const char*>(r.stream.data()),
+        f.write(reinterpret_cast<const char *>(r.stream.data()),
                 static_cast<std::streamsize>(r.stream.size()));
     }
 
-    struct mspack_system* sys = mspack_default_system;
-    struct mspack_file* in = sys->open(sys, compPath.c_str(), MSPACK_SYS_OPEN_READ);
+    struct mspack_system *sys = mspack_default_system;
+    struct mspack_file *in = sys->open(sys, compPath.c_str(), MSPACK_SYS_OPEN_READ);
     const std::string decPath = outBase + ".out";
-    struct mspack_file* out = sys->open(sys, decPath.c_str(), MSPACK_SYS_OPEN_WRITE);
+    struct mspack_file *out = sys->open(sys, decPath.c_str(), MSPACK_SYS_OPEN_WRITE);
     if (!in || !out) {
         std::cerr << "falha ao abrir arquivos de teste\n";
         return 2;
     }
 
-    struct lzxd_stream* lz = lzxd_init(sys, in, out, 16, 2, 4096,
+    struct lzxd_stream *lz = lzxd_init(sys, in, out, 16, 2, 4096,
                                        static_cast<off_t>(r.paddedSize), 0);
     if (!lz) {
         std::cerr << "lzxd_init falhou\n";
@@ -50,8 +49,8 @@ int main(int argc, char** argv) {
     }
     const int err = lzxd_decompress(lz, static_cast<off_t>(r.paddedSize));
     std::cerr << "lzxd_decompress erro=" << err << " stream=" << r.stream.size()
-              << " padded=" << r.paddedSize << " frames="
-              << r.resetOffsets.size() << "\n";
+            << " padded=" << r.paddedSize << " frames="
+            << r.resetOffsets.size() << "\n";
     lzxd_free(lz);
     sys->close(in);
     sys->close(out);
@@ -67,7 +66,7 @@ int main(int argc, char** argv) {
         size_t at = 0;
         while (at < decoded.size() && at < expected.size() && decoded[at] == expected[at]) ++at;
         std::cerr << "DIVERGENCIA em " << at << " (dec=" << (at < decoded.size() ? decoded[at] : -1)
-                  << ", exp=" << (at < expected.size() ? expected[at] : -1) << ")\n";
+                << ", exp=" << (at < expected.size() ? expected[at] : -1) << ")\n";
         return 1;
     }
     std::cerr << "OK\n";
