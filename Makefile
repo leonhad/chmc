@@ -1,10 +1,10 @@
-# Makefile para o gerador de CHM em C++17.
+# Makefile for the CHM builder in C++17.
 #
-# Alvos principais:
-#   make            compila chm_builder.exe
-#   make run        gera exemplo/projeto.chm
-#   make clean      remove objetos e executáveis gerados
-#   make test       valida com libmspack (incluído no projeto)
+# Main targets:
+#   make            builds chmc.exe
+#   make run        generates example/project.chm
+#   make clean      removes generated objects and executables
+#   make test       validates with libmspack (included in the project)
 
 .DEFAULT_GOAL := all
 
@@ -17,8 +17,8 @@ LDFLAGS  ?=
 LDLIBS   ?=
 DEPFLAGS  = -MMD -MP
 
-TARGET := chm_builder.exe
-SRC    := chm_builder/main.cpp chm_builder/chm.cpp chm_builder/lzx.cpp
+TARGET := chmc.exe
+SRC    := chmc/main.cpp chmc/chm.cpp chmc/lzx.cpp
 OBJ    := $(SRC:.cpp=.o)
 DEPS   := $(OBJ:.o=.d)
 
@@ -43,20 +43,20 @@ clean:
 	$(RM) $(OBJ) $(DEPS) $(TARGET)
 	$(RM) lzxd.o chmd.o mspack_system.o crc32.o
 	$(RM) test_lzx.exe test_chm.exe
-	$(RM) lzx_teste.lzx lzx_teste.out
+	$(RM) lzx_test.lzx lzx_test.out
 
 help:
-	@echo "Alvos disponíveis:"
-	@echo "  all        compila $(TARGET) (padrão)"
-	@echo "  run        gera exemplo/projeto.chm"
-	@echo "  clean      remove objetos e executáveis gerados"
-	@echo "  rebuild    executa clean e all"
-	@echo "  test       executa test-lzx e test-chm"
-	@echo "  test-lzx   valida o LZX com lzxd.c do libmspack"
-	@echo "  test-chm   valida o CHM com chmd.c do libmspack"
+	@echo "Available targets:"
+	@echo "  all        builds $(TARGET) (default)"
+	@echo "  run        generates exemplo/projeto.chm"
+	@echo "  clean      removes generated objects and executables"
+	@echo "  rebuild    runs clean and all"
+	@echo "  test       runs test-lzx and test-chm"
+	@echo "  test-lzx   validates LZX with lzxd.c from libmspack"
+	@echo "  test-chm   validates CHM with chmd.c from libmspack"
 
 # ---------------------------------------------------------------------------
-# Testes com libmspack (incluído no projeto)
+# Tests with libmspack (included in the project)
 # ---------------------------------------------------------------------------
 MSPACK_DIR := libmspack
 MSPACK_INC := -I$(MSPACK_DIR)
@@ -66,17 +66,17 @@ TEST_CHM   := test_chm.exe
 test: test-lzx test-chm
 
 test-lzx: $(TEST_LZX)
-	./$(TEST_LZX) lzx_teste
+	./$(TEST_LZX) lzx_test
 
 test-chm: $(TARGET) $(TEST_CHM)
 	./$(TARGET) exemplo/projeto.hhp exemplo/projeto.chm
 	./$(TEST_CHM) exemplo/projeto.chm exemplo
 
-$(TEST_LZX): chm_builder/test_lzx.cpp chm_builder/lzx.o lzxd.o mspack_system.o
+$(TEST_LZX): chmc chmc lzxd.o mspack_system.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(MSPACK_INC) -o $@ \
 		chm_builder/test_lzx.cpp chm_builder/lzx.o lzxd.o mspack_system.o $(LDLIBS)
 
-$(TEST_CHM): chm_builder/test_chm.cpp chmd.o lzxd.o mspack_system.o crc32.o
+$(TEST_CHM): chmc chmd.o lzxd.o mspack_system.o crc32.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(MSPACK_INC) -o $@ \
 		chm_builder/test_chm.cpp chmd.o lzxd.o mspack_system.o crc32.o $(LDLIBS)
 

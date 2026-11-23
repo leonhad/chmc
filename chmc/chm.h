@@ -5,30 +5,30 @@
 #include <vector>
 
 namespace chm {
-    // Arquivo que será colocado dentro do CHM. 'internalName' comeca com '/'.
+    // File that will be placed inside the CHM. 'internalName' starts with '/'.
     struct InputFile {
         std::string internalName;
         std::vector<uint8_t> data;
     };
 
     struct TocEntry {
-        std::string name; // texto exibido no sumário
-        std::string local; // nome interno ("/topic.htm"), vazio para no sem destino
-        int depth = 0; // profundidade no .hhc (0 = raiz)
+        std::string name; // text displayed in the table of contents
+        std::string local; // internal name ("/topic.htm"), empty for node without destination
+        int depth = 0; // depth in .hhc (0 = root)
         bool hasChildren = false;
     };
 
-    // Palavra-chave do .hhk, com o topico que deve ser aberto no índice binário.
+    // Keyword from .hhk, with the topic that should be opened in the binary index.
     struct KeywordEntry {
         std::string name;
         std::string local;
         int depth = 0;
     };
 
-    // Definicao de janela do visualizador (seção [WINDOWS] do .hhp).
-    // Mapeia todos os campos de HH_WINTYPE, incluindo embedded windows
-    // e tipos especiais (rcHTML, tabOrder, cHistory, rcMinSize, infoTypes,
-    // customTabs) conforme o padrão CHM 1.1+.
+    // Viewer window definition ([WINDOWS] section of .hhp).
+    // Maps all fields of HH_WINTYPE, including embedded windows
+    // and special types (rcHTML, tabOrder, cHistory, rcMinSize, infoTypes,
+    // customTabs) per the CHM 1.1+ standard.
     struct WindowDef {
         std::string name; // Arg 0 / pszType
         std::string caption; // Arg 1 / pszCaption
@@ -51,15 +51,15 @@ namespace chm {
         uint32_t defaultPane = 0; // Arg 18 / curNavType
         uint32_t tabPos = 0; // Arg 19 / tabpos
         uint32_t idNotify = 0; // Arg 20 / idNotify
-        uint32_t validFlags = 0; // fsValidMembers; 0 = calculado pelo gerador
+        uint32_t validFlags = 0; // fsValidMembers; 0 = calculated by the builder
 
-        // --- Campos avançados / embedded windows (CHM 1.1+) --------------------
-        int32_t rcHTML[4] = {0, 0, 0, 0}; // rcHTML: coordenadas do painel de tópicos
-        uint8_t tabOrder[17] = {}; // tabOrder: ordem das abas (Contents, Index, Search, History, Favorites, Reserved 1-5, Custom)
-        int32_t cHistory = 30; // cHistory: número de itens de histórico (padrão 30)
-        std::string customTabs; // pszCustomTabs: rótulos das abas personalizadas (strings null-separated)
-        int32_t rcMinSize[4] = {0, 0, 0, 0}; // rcMinSize: tamanho mínimo da janela (left,top,right,bottom)
-        int32_t cbInfoTypes = 0; // cbInfoTypes: tamanho de paInfoTypes
+        // --- Advanced fields / embedded windows (CHM 1.1+) --------------------
+        int32_t rcHTML[4] = {0, 0, 0, 0}; // rcHTML: topic panel coordinates
+        uint8_t tabOrder[17] = {}; // tabOrder: tab order (Contents, Index, Search, History, Favorites, Reserved 1-5, Custom)
+        int32_t cHistory = 30; // cHistory: number of history items (default 30)
+        std::string customTabs; // pszCustomTabs: custom tab labels (null-separated strings)
+        int32_t rcMinSize[4] = {0, 0, 0, 0}; // rcMinSize: minimum window size (left,top,right,bottom)
+        int32_t cbInfoTypes = 0; // cbInfoTypes: size of paInfoTypes
     };
 
     struct BuildOptions {
@@ -82,7 +82,7 @@ namespace chm {
         std::vector<WindowDef> windows;
     };
 
-    // Monta um CHM ITSF v3 com seção 0 (não comprimida) e seção 1 (LZX).
+    // Builds an ITSF v3 CHM with section 0 (uncompressed) and section 1 (LZX).
     bool build(const std::string &outPath,
                const std::vector<InputFile> &files,
                const BuildOptions &options,

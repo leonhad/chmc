@@ -16,7 +16,7 @@
 namespace chm {
     namespace {
         // ---------------------------------------------------------------------------
-        // Gravadores little-endian
+        // Little-endian writers
         // ---------------------------------------------------------------------------
         void w16(std::vector<uint8_t> &v, const uint16_t x) {
             v.push_back(static_cast<uint8_t>(x));
@@ -80,7 +80,7 @@ namespace chm {
             return !s.empty() && s[0] == '/' ? s.substr(1) : s;
         }
 
-        // ENCINT: grupos de 7 bits, do mais significativo para o menos significativo.
+        // ENCINT: 7-bit groups, from most significant to least significant.
         int encIntLen(const uint64_t x) {
             int n = 1;
             while (x >= 1ULL << (7 * n)) ++n;
@@ -96,8 +96,8 @@ namespace chm {
             }
         }
 
-        // O $FIftiMain usa grupos de 7 bits em ordem inversa: o byte menos
-        // significativo vem primeiro e o bit 0x80 indica que ha mais grupos.
+        // $FIftiMain uses 7-bit groups in reverse order: the least
+        // significant byte comes first and bit 0x80 indicates there are more groups.
         void encIntLe7(std::vector<uint8_t> &v, uint64_t x) {
             do {
                 auto b = static_cast<uint8_t>(x & 0x7F);
@@ -113,7 +113,7 @@ namespace chm {
             for (const uint8_t b: tmp) v[at++] = b;
         }
 
-        // GUIDs já em ordem de bytes (os três primeiros campos little-endian).
+        // GUIDs already in byte order (the first three fields little-endian).
         const uint8_t kGuidDir[16] = {
             0x10, 0xFD, 0x01, 0x7C, 0xAA, 0x7B, 0xD0, 0x11,
             0x9E, 0x0C, 0x00, 0xA0, 0xC9, 0x22, 0xE6, 0xEC
@@ -135,7 +135,7 @@ namespace chm {
                 "{7FC28940-9D31-11D0-9B27-00A0C91E9C7C}/InstanceData/";
 
         // ---------------------------------------------------------------------------
-        // #STRINGS: blocos de 4096 bytes; offset 0 e uma string vazia
+        // #STRINGS: 4096-byte blocks; offset 0 and an empty string
         // ---------------------------------------------------------------------------
         class StringTable {
         public:
@@ -160,7 +160,7 @@ namespace chm {
         };
 
         // ---------------------------------------------------------------------------
-        // Arquivos internos (#SYSTEM, #TOPICS, #URLTBL, etc.)
+        // Internal files (#SYSTEM, #TOPICS, #URLTBL, etc.)
         // ---------------------------------------------------------------------------
         void addSystemEntry(std::vector<uint8_t> &v, const uint16_t code,
                             const void *data, const size_t len) {
@@ -187,7 +187,7 @@ namespace chm {
             bool synthWindow = false;
         };
 
-        // Extrai o conteúdo da tag <title> de um arquivo HTML/HHC/HHK.
+        // Extracts the content of the <title> tag from an HTML/HHC/HHK file.
         std::string htmlTitle(const std::vector<uint8_t> &data) {
             const std::string s(reinterpret_cast<const char *>(data.data()), data.size());
             const std::string low = lower(s);
@@ -201,7 +201,7 @@ namespace chm {
             return s.substr(b, e - b);
         }
 
-        // ID deterministico usado nas entradas especiais de #URLTBL.
+        // Deterministic ID used in special #URLTBL entries.
         uint32_t makeId(const std::string &s) {
             uint32_t h = 2166136261u;
             for (const unsigned char c: s) {
@@ -212,7 +212,7 @@ namespace chm {
         }
 
         // ---------------------------------------------------------------------------
-        // Blobs internos de índice: $OBJINST, $WW* e $FIftiMain
+        // Internal index blobs: $OBJINST, $WW* and $FIftiMain
         // ---------------------------------------------------------------------------
         std::string normalizeLocal(const std::string &s) {
             size_t start = 0;
@@ -227,7 +227,7 @@ namespace chm {
             return r;
         }
 
-        // $OBJINST é uma lista de dois objetos COM usados pelo motor de índice.
+        // $OBJINST is a list of two COM objects used by the index engine.
         std::vector<uint8_t> buildObjInst(const uint32_t lcid) {
             std::vector<uint8_t> v;
             w32(v, 0x04000000u);
@@ -299,22 +299,22 @@ namespace chm {
             uint32_t dataOffset = 0;
         };
 
-        // Escreve um bloco de listagem (palavra + pares topico) no BTree.
+        // Writes a listing block (word + topic pairs) to the BTree.
         std::vector<uint8_t> listingEntryBytes(const KeywordIndexEntry &e) {
             std::vector<uint8_t> v;
             utf16Nt(v, e.word);
             w16(v, 0); // seeAlso
-            w16(v, 0); // profundidade
-            w32(v, 0); // indice do caractere da virgula
-            w32(v, 0); // desconhecido
-            w32(v, 1); // numero de pares
+            w16(v, 0); // depth
+            w32(v, 0); // comma character index
+            w32(v, 0); // unknown
+            w32(v, 1); // number of pairs
             w32(v, e.topicIndex);
-            w32(v, 1); // sempre 1
+            w32(v, 1); // always 1
             w32(v, e.dataOffset);
             return v;
         }
 
-        // Entrada de nível superior: termina com o número do bloco filho.
+        // Top-level entry: ends with the child block number.
         std::vector<uint8_t> indexEntryBytes(const std::vector<uint8_t> &listing,
                                              const uint32_t childBlock) {
             std::vector v(listing.begin(), listing.end() - 8);
@@ -332,7 +332,7 @@ namespace chm {
             out.prop.assign(4, 0);
             if (entries.empty()) return out;
 
-            // Ordem case-insensitive, como no compilador da Microsoft.
+            // Case-insensitive order, as in the Microsoft compiler.
             std::vector<size_t> order(entries.size());
             for (size_t i = 0; i < order.size(); ++i) order[i] = i;
             std::sort(order.begin(), order.end(), [&](const size_t a, const size_t b) {
@@ -377,18 +377,18 @@ namespace chm {
                 used += enc.size();
                 ++count;
                 lastListing = enc;
-                lastListing.back() = 0; // mod13 não participa do cabecalho de indice
+                lastListing.back() = 0; // mod13 does not participate in the index header
 
-                // Cada registro de dados e constante; o segundo DWORD parece ser o
-                // número total de nós de tópico do CHM.
+                // Each data record is constant; the second DWORD appears to be the
+                // total number of topic nodes in the CHM.
                 uint8_t dataEntry[13] = {0, 0, 0, 0, 0, 0, 0, 0, 0x80, 0, 0, 0, 0};
                 put32(dataEntry, 4, totalTopics);
                 out.data.insert(out.data.end(), dataEntry, dataEntry + 13);
             }
             flushLeaf();
 
-            // Mapa: quantidade de blocos de listagem e, para cada um, a quantidade
-            // acumulada de entradas antes dele e o número do bloco.
+            // Map: number of listing blocks and, for each, the accumulated
+            // number of entries before it and the block number.
             w16(out.map, static_cast<uint16_t>(leaves.size()));
             uint32_t accumulated = 0;
             for (size_t i = 0; i < leaves.size(); ++i) {
@@ -397,12 +397,12 @@ namespace chm {
                 accumulated = (i + 1) * entries.size() / leaves.size();
             }
 
-            // Constante observada quando existem links deste tipo.
+            // Observed constant when there are links of this type.
             const uint32_t props[8] = {0, 0, 0, 0x0C, 1, 1, 0, 0};
             out.prop.clear();
             for (uint32_t p: props) w32(out.prop, p);
 
-            // Níveis de índice, quando há mais de um bloco de listagem.
+            // Index levels, when there is more than one listing block.
             std::vector<std::vector<uint8_t> > allBlocks;
             allBlocks.emplace_back(out.btree.begin(), out.btree.begin() + static_cast<std::ptrdiff_t>(leaves.size()) * 2048);
             struct IndexItem {
@@ -471,7 +471,7 @@ namespace chm {
         }
 
         // ---------------------------------------------------------------------------
-        // $FIftiMain: índice de texto integral
+        // $FIftiMain: full-text index
         // ---------------------------------------------------------------------------
         struct HtmlWord {
             std::string text;
@@ -514,7 +514,7 @@ namespace chm {
 
         void tokenizeIndexedText(const std::string &raw, const bool isTitle, uint32_t &position,
                                  std::vector<HtmlWord> &out) {
-            // Substitui entidades por um unico caractere (ou separador) e minúsculas.
+            // Replaces entities with a single character (or separator) and lowercase.
             std::string s;
             for (size_t i = 0; i < raw.size();) {
                 if (raw[i] == '&') {
@@ -682,8 +682,8 @@ namespace chm {
             if (words.empty()) return {};
             std::vector<uint8_t> out(0x400, 0);
 
-            // O escritor do FPC usa estas raizes provisorias e grava os mesmos valores
-            // no cabeçalho final. As escalas ficam em 2.
+            // The FPC writer uses these temporary roots and writes the same values
+            // in the final header. The scales stay at 2.
             constexpr int kDocRoot = 1, kCountRoot = 1, kLocRoot = 5;
             constexpr size_t kNodeSize = 4096;
             struct NodeRef {
@@ -752,9 +752,9 @@ namespace chm {
             }
             flushLeaf();
 
-            // Nós de índice: cada entrada guarda o último termo do bloco filho e o
-            // offset absoluto desse bloco. O cabeçalho de um nó de índice tem apenas
-            // o WORD de espaco livre; as entradas comecam no offset 2.
+            // Index nodes: each entry stores the last term of the child block and the
+            // absolute offset of that block. The header of an index node has only
+            // the WORD of free space; entries start at offset 2.
             std::vector<NodeRef> level = leaves;
             size_t indexLevels = 0;
             while (level.size() > 1) {
@@ -837,9 +837,9 @@ namespace chm {
             Internal in;
 
             // --- #STRINGS -----------------------------------------------------------
-            // Ordem observada em CHMs compilados pelo HHA: "", nome da janela, título,
-            // sumário, índice, tópico inicial, títulos dos tópicos (HTML) e títulos
-            // dos arquivos de sumário/índice. A fonte fica no código 16 de #SYSTEM.
+            // Order observed in CHMs compiled by HHA: "", window name, title,
+            // table of contents, index, starting topic, topic titles (HTML) and titles
+            // of table of contents/index files. The font is in code 16 of #SYSTEM.
             auto findFile = [&](const std::string &internal) -> const InputFile * {
                 for (const InputFile &f: files) {
                     if (stripSlash(f.internalName) == internal) return &f;
@@ -856,9 +856,9 @@ namespace chm {
                 return st.add(stripSlash(s));
             };
 
-            // Janelas: usa [WINDOWS] do .hhp quando presente; caso contrário, gera uma
-            // janela padrão compatível com hh.exe. Embedded windows avançadas não são
-            // suportadas.
+            // Windows: uses [WINDOWS] from .hhp when present; otherwise, generates a
+            // default window compatible with hh.exe. Advanced embedded windows are not
+            // supported.
             std::vector<WindowDef> windows = opt.windows;
             const bool synthWindow = windows.empty();
             in.synthWindow = synthWindow;
@@ -877,8 +877,8 @@ namespace chm {
                 if (w.caption.empty()) w.caption = opt.title;
                 if (w.defaultFile.empty()) w.defaultFile = stripSlash(opt.defaultTopic);
                 if (w.homeFile.empty()) w.homeFile = w.defaultFile;
-                // fsValidMembers: seta bits conforme campos presentes/explicitamente dados.
-                // Semântica baseada na tabela HH_WINTYPE observada em CHMs reais.
+                // fsValidMembers: sets bits according to present/explicitly given fields.
+                // Semantics based on the HH_WINTYPE table observed in real CHMs.
                 uint32_t v = w.validFlags;
                 if (v == 0) {
                     if (w.navStyle != 0) v |= 0x00000002;
@@ -895,7 +895,7 @@ namespace chm {
                 }
             }
 
-            // Seleciona janela padrão pelo Default Window=.
+            // Selects default window by Default Window=.
             size_t defaultWindowIndex = 0;
             for (size_t i = 0; i < windows.size(); ++i) {
                 if (lower(windows[i].name) == lower(opt.defaultWindow)) {
@@ -908,7 +908,7 @@ namespace chm {
             (void) dw;
             (void) stAddFile;
 
-            // --- Tópicos: HTML do sumário, HTML solto, sumário.hhc e índice.hhk -----
+            // --- Topics: HTML from table of contents, standalone HTML, table of contents.hhc and index.hhk -----
             struct Topic {
                 std::string local;
                 std::string title;
@@ -975,7 +975,7 @@ namespace chm {
 
             for (Topic &t: topics) t.titleOff = st.add(t.title);
 
-            // --- #URLSTR: prefixo de 8 zeros antes de cada URL ----------------------
+            // --- #URLSTR: 8-byte zero prefix before each URL ----------------------
             in.urlstr.reserve(topics.size() * 20 + 1);
             in.urlstr.push_back(0x42);
             std::vector<uint32_t> urlSlotOff(topics.size(), 0);
@@ -985,9 +985,9 @@ namespace chm {
                 cstr(in.urlstr, topics[i].local);
             }
 
-            // --- #URLTBL: blocos de 4096 bytes, 341 entradas por bloco --------------
-            // Observado em CHMs HHC: uma entrada por tópico HTML; sem entradas para
-            // .hhc/.hhk. A ordenação por ID facilita a busca.
+            // --- #URLTBL: 4096-byte blocks, 341 entries per block --------------
+            // Observed in HHC CHMs: one entry per HTML topic; no entries for
+            // .hhc/.hhk. Sorting by ID facilitates search.
             struct UrlEntry {
                 uint32_t id;
                 uint32_t topic;
@@ -1113,10 +1113,10 @@ namespace chm {
             }
             if (topics.empty()) zeros(in.topics, 16);
 
-            // --- #IDXHDR (mesmos bytes da entrada 13 de #SYSTEM) -------------------
+            // --- #IDXHDR (same bytes as #SYSTEM entry 13) -------------------
             const uint32_t idxChecksum = makeId("IDXHDR") ^ opt.unixTime;
             in.idxhdr.assign(4096, 0);
-            put32(in.idxhdr, 0, 0x4D532354u); // "T#SM" em little-endian
+            put32(in.idxhdr, 0, 0x4D532354u); // "T#SM" in little-endian
             put32(in.idxhdr, 4, idxChecksum);
             put32(in.idxhdr, 8, 1);
             put32(in.idxhdr, 0xC, topics.size());
@@ -1132,35 +1132,34 @@ namespace chm {
             put32(in.idxhdr, 0x48, 0);
 
             // --- #WINDOWS -----------------------------------------------------------
-            // Formato HH_WINTYPE completo conforme htmlhelp.h e chmspec.
-            // Layout baseado na estrutura file_wintype do ReactOS hhctrl:
-            // Campos de ponteiros (HWND, LPCTSTR) são serializados como DWORD offsets
-            // em #STRINGS. Campos avançados (rcHTML, tabOrder, cHistory, rcMinSize,
-            // cbInfoTypes, pszCustomTabs) suportam embedded windows e tipos especiais
-            // do CHM 1.1+.
+            // Complete HH_WINTYPE format per htmlhelp.h and chmspec.
+            // Layout based on the file_wintype structure from ReactOS hhctrl:
+            // Pointer fields (HWND, LPCTSTR) are serialized as DWORD offsets
+            // in #STRINGS. Advanced fields (rcHTML, tabOrder, cHistory, rcMinSize,
+            // cbInfoTypes, pszCustomTabs) support embedded windows and special types
+            // of CHM 1.1+.
             //
-            // Offset  Tipo          Campo (htmlhelp.h)
+            // Offset  Type          Field (htmlhelp.h)
             // 0x00    int           cbStruct
             // 0x04    BOOL          fUniCodeStrings
-            // 0x08    DWORD         pszType (offset em #STRINGS)
+            // 0x08    DWORD         pszType (offset in #STRINGS)
             // 0x0C    DWORD         fsValidMembers
             // 0x10    DWORD         fsWinProperties
-            // 0x14    DWORD         pszCaption (offset em #STRINGS)
+            // 0x14    DWORD         pszCaption (offset in #STRINGS)
             // 0x18    DWORD         dwStyles
             // 0x1C    DWORD         dwExStyles
             // 0x20    RECT          rcWindowPos (16 bytes)
             // 0x30    int           nShowState
-            // 0x34    RECT          rcHTML (16 bytes) — coordenadas do painel HTML
-            // 0x44    DWORD         hwndHelp (runtime, gravado como 0)
-            // 0x48    DWORD         hwndCaller (runtime, gravado como 0)
-            // 0x4C    int           iNavWidth
-            // 0x50    DWORD         hwndToolBar (runtime, gravado como 0)
-            // 0x54    DWORD         hwndNavigation (runtime, gravado como 0)
-            // 0x58    DWORD         hwndHTML (runtime, gravado como 0)
-            // 0x5C    DWORD         pszToc (offset em #STRINGS)
-            // 0x60    DWORD         pszIndex (offset em #STRINGS)
-            // 0x64    DWORD         pszFile (offset em #STRINGS)
-            // 0x68    DWORD         pszHome (offset em #STRINGS)
+            // 0x34    RECT          rcHTML (16 bytes) — HTML panel coordinates
+            // 0x44    DWORD         hwndHelp (runtime, written as 0)
+            // 0x48    DWORD         hwndCaller (runtime, written as 0)
+            // 0x50    DWORD         hwndToolBar (runtime, written as 0)
+            // 0x54    DWORD         hwndNavigation (runtime, written as 0)
+            // 0x58    DWORD         hwndHTML (runtime, written as 0)
+            // 0x5C    DWORD         pszToc (offset in #STRINGS)
+            // 0x60    DWORD         pszIndex (offset in #STRINGS)
+            // 0x64    DWORD         pszFile (offset in #STRINGS)
+            // 0x68    DWORD         pszHome (offset in #STRINGS)
             // 0x6C    DWORD         fsToolBarFlags
             // 0x70    BOOL          fNotExpanded
             // 0x74    int           curNavType
@@ -1168,15 +1167,15 @@ namespace chm {
             // 0x7C    int           idNotify
             // 0x80    BYTE[17]     tabOrder
             // 0x91    int           cHistory
-            // 0x95    DWORD         pszJump1 (offset em #STRINGS) — padding a 0x98
-            // 0x98    DWORD         pszJump2 (offset em #STRINGS)
-            // 0x9C    DWORD         pszUrlJump1 (offset em #STRINGS)
-            // 0xA0    DWORD         pszUrlJump2 (offset em #STRINGS)
-            // 0xA4    RECT          rcMinSize (16 bytes) — tamanho mínimo da janela
+            // 0x95    DWORD         pszJump1 (offset in #STRINGS) — padding to 0x98
+            // 0x98    DWORD         pszJump2 (offset in #STRINGS)
+            // 0x9C    DWORD         pszUrlJump1 (offset in #STRINGS)
+            // 0xA0    DWORD         pszUrlJump2 (offset in #STRINGS)
+            // 0xA4    RECT          rcMinSize (16 bytes) — minimum window size
             // 0xB4    int           cbInfoTypes
-            // 0xB8    DWORD         pszCustomTabs (offset em #STRINGS)
-            // Total: 0xBC (188 bytes) para CHM 1.0, 0xC0 (192) com padding
-            // O HTML Help Workshop grava 196 bytes (0xC4) com padding final.
+            // 0xB8    DWORD         pszCustomTabs (offset in #STRINGS)
+            // Total: 0xBC (188 bytes) for CHM 1.0, 0xC0 (192) with padding
+            // The HTML Help Workshop writes 196 bytes (0xC4) with final padding.
             const uint32_t winEntrySize = 196;
             in.windows.assign(8 + winEntrySize * windows.size(), 0);
             put32(in.windows, 0, windows.size());
@@ -1192,7 +1191,7 @@ namespace chm {
                     if (!s.empty()) put32(in.windows, off + fieldOff, st.add(stripSlash(s)));
                 };
 
-                // --- Campos básicos (presentes em todas as versões) ---------------
+                // --- Basic fields (present in all versions) ---------------
                 W32(0x00, winEntrySize); // cbStruct
                 W32(0x04, 0); // fUniCodeStrings
                 WSTR(0x08, w.name); // pszType
@@ -1206,12 +1205,12 @@ namespace chm {
                 }
                 W32(0x30, w.showState); // nShowState
 
-                // --- rcHTML: coordenadas do painel de tópicos (embedded windows) --
+                // --- rcHTML: topic panel coordinates (embedded windows) --
                 for (int r = 0; r < 4; ++r) {
                     put32(in.windows, off + 0x34 + r * 4, static_cast<uint32_t>(w.rcHTML[r]));
                 }
 
-                // --- Handles de janela (runtime, sempre 0 no arquivo) -----------
+                // --- Window handles (runtime, always 0 in the file) -----------
                 W32(0x44, 0); // hwndHelp
                 W32(0x48, 0); // hwndCaller
                 W32(0x4C, w.navWidth); // iNavWidth
@@ -1219,26 +1218,26 @@ namespace chm {
                 W32(0x54, 0); // hwndNavigation
                 W32(0x58, 0); // hwndHTML
 
-                // --- Arquivos de navegação ---------------------------------------
+                // --- Navigation files ---------------------------------------
                 WFILE(0x5C, w.toc); // pszToc
                 WFILE(0x60, w.index); // pszIndex
                 WFILE(0x64, w.defaultFile); // pszFile
                 WFILE(0x68, w.homeFile); // pszHome
 
-                // --- Toolbar e navegação -----------------------------------------
+                // --- Toolbar and navigation -----------------------------------------
                 W32(0x6C, w.buttons); // fsToolBarFlags
                 W32(0x70, w.navPaneClosed); // fNotExpanded
                 W32(0x74, w.defaultPane); // curNavType
                 W32(0x78, w.tabPos); // tabpos
                 W32(0x7C, w.idNotify); // idNotify
 
-                // --- tabOrder: ordem das abas (17 bytes) -------------------------
+                // --- tabOrder: tab order (17 bytes) -------------------------
                 size_t tabOrderOff = off + 0x80;
                 for (int t = 0; t < 17; ++t) {
                     in.windows[tabOrderOff + t] = w.tabOrder[t];
                 }
 
-                // --- cHistory: número de itens de histórico ----------------------
+                // --- cHistory: number of history items ----------------------
                 put32(in.windows, off + 0x91, static_cast<uint32_t>(w.cHistory));
 
                 // --- Jump buttons ------------------------------------------------
@@ -1247,20 +1246,20 @@ namespace chm {
                 WSTR(0xA0, w.urlJump1); // pszUrlJump1
                 WSTR(0xA4, w.urlJump2); // pszUrlJump2
 
-                // --- Campos avançados (CHM 1.1+): embedded windows e tipos especiais
-                // rcMinSize: tamanho mínimo da janela ----------------------------
+                // --- Advanced fields (CHM 1.1+): embedded windows and special types
+                // rcMinSize: minimum window size ----------------------------
                 for (int r = 0; r < 4; ++r) {
                     put32(in.windows, off + 0xB4 + r * 4, static_cast<uint32_t>(w.rcMinSize[r]));
                 }
 
-                // cbInfoTypes: tamanho de paInfoTypes (para tipos de informação) --
+                // cbInfoTypes: size of paInfoTypes (for info types) --
                 W32(0xC4, static_cast<uint32_t>(w.cbInfoTypes)); // cbInfoTypes
 
-                // pszCustomTabs: rótulos das abas personalizadas ------------------
+                // pszCustomTabs: custom tab labels ------------------
                 WSTR(0xC8, w.customTabs); // pszCustomTabs
             }
 
-            // --- Índice binário de palavras-chave ($WW*) ----------------------------
+            // --- Binary keyword index ($WW*) ----------------------------
             std::map<std::string, uint32_t> topicByLocalBin;
             for (size_t i = 0; i < htmlTopicCount; ++i) {
                 topicByLocalBin[normalizeLocal(topics[i].local)] = i;
@@ -1292,7 +1291,7 @@ namespace chm {
             in.aLinksProperty.assign(4, 0);
             in.objinst = buildObjInst(opt.lcid);
 
-            // --- Índice de texto integral ($FIftiMain) ------------------------------
+            // --- Full-text index ($FIftiMain) ------------------------------
             std::vector<FtiWord> ftiWords;
             ftiWords.reserve(htmlTopicCount * 100);
             std::map<std::string, size_t> ftiIndex;
@@ -1324,8 +1323,8 @@ namespace chm {
                     fw.docs.back().positions.push_back(hw.position);
                 }
             }
-            // O leitor percorre a árvore em ordem de CompareStr; a forma de título vem
-            // antes da forma de corpo quando a palavra e a mesma.
+            // The reader traverses the tree in CompareStr order; the title form comes
+            // before the body form when the word is the same.
             std::sort(ftiWords.begin(), ftiWords.end(), [](const FtiWord &a, const FtiWord &b) {
                 if (a.text != b.text) return a.text < b.text;
                 return a.isTitle && !b.isTitle;
@@ -1354,7 +1353,7 @@ namespace chm {
             addSystemString(in.system, 2, stripSlash(opt.defaultTopic));
             addSystemString(in.system, 3, opt.title);
             addSystemString(in.system, 6, lower(opt.compiledName));
-            addSystemU32(in.system, 7, 0x62A83769u); // ID do indice binario
+            addSystemU32(in.system, 7, 0x62A83769u); // Binary index ID
             addSystemU32(in.system, 12, 0);
             addSystemEntry(in.system, 13, in.idxhdr.data(), in.idxhdr.size());
             addSystemU32(in.system, 15, 0);
@@ -1368,7 +1367,7 @@ namespace chm {
         }
 
         // ---------------------------------------------------------------------------
-        // Diretorio ITSP/PMGL/PMGI
+        // ITSP/PMGL/PMGI Directory
         // ---------------------------------------------------------------------------
         struct DirEntry {
             std::string name;
@@ -1379,7 +1378,7 @@ namespace chm {
 
         struct Chunk {
             std::array<uint8_t, 4096> data{};
-            size_t dataLen = 0; // bytes de entradas, a partir do offset 20
+            size_t dataLen = 0; // entry bytes, starting from offset 20
             int count = 0;
 
             Chunk() { data.fill(0); }
@@ -1395,7 +1394,7 @@ namespace chm {
             return v;
         }
 
-        // Escreve um chunk PMGL. 'quickrefs' sao offsets das entradas 5, 10, 15...
+        // Writes a PMGL chunk. 'quickrefs' are offsets of entries 5, 10, 15...
         void finishPmgl(Chunk &c, const int prev, const int next) {
             raw(c.data.data(), "PMGL", 4);
             put32(c.data.data(), 8, 0);
@@ -1428,16 +1427,16 @@ namespace chm {
                 auto entryLen = static_cast<size_t>(p - (c.data.data() + inChunk));
                 inChunk += entryLen;
             }
-            // O HHC grava os quickrefs em ordem inversa e relativos ao início da
-            // área de entradas (após os 20 bytes de cabeçalho do chunk).
+            // The HHC writes quickrefs in reverse order and relative to the start of the
+            // entry area (after the 20-byte chunk header).
             int qpos = 4094;
             for (auto it = quickrefs.rbegin(); it != quickrefs.rend(); ++it) {
                 qpos -= 2;
                 put16(c.data.data(), static_cast<size_t>(qpos), *it);
             }
-            // QuickRefSize cobre toda a área livre após as entradas, incluindo a
-            // tabela de quickrefs e o WORD final de contagem. inChunk e offset
-            // absoluto no chunk (20 + bytes de entradas).
+            // QuickRefSize covers the entire free area after entries, including the
+            // quickref table and the final WORD count. inChunk is the offset
+            // absolute in the chunk (20 + entry bytes).
             put32(c.data.data(), 4, 4096 - inChunk);
             put16(c.data.data(), 4094, static_cast<uint16_t>(c.count));
         }
@@ -1472,7 +1471,7 @@ namespace chm {
                 qpos -= 2;
                 put16(c.data.data(), static_cast<size_t>(qpos), *it);
             }
-            // inChunk e offset absoluto no chunk (8 + bytes de entradas).
+            // inChunk is the absolute offset in the chunk (8 + entry bytes).
             put32(c.data.data(), 4, 4096 - inChunk);
             put16(c.data.data(), 4094, static_cast<uint16_t>(c.count));
         }
@@ -1533,7 +1532,7 @@ namespace chm {
             dir.numChunks = dir.pmgl.size();
 
             if (dir.pmgl.size() > 1) {
-                // Um único chunk PMGI com o primeiro nome de cada chunk PMGL.
+                // A single PMGI chunk with the first name of each PMGL chunk.
                 Chunk pmgi;
                 for (size_t i = 0; i < dir.pmgl.size(); ++i) {
                     const uint8_t *p = pmgi.data.data() + 8 + pmgi.dataLen;
@@ -1559,7 +1558,7 @@ namespace chm {
                                                ? (pmgi.count + 1) / 5
                                                : pmgi.count / 5;
                     if (const size_t limit = 4094u - static_cast<size_t>(2 * quickAfter) - 8u; pmgi.dataLen + enc.size() > limit) {
-                        error = "muitos chunks PMGL para o indice PMGI implementado";
+                        error = "too many PMGL chunks for the implemented PMGI index";
                         return false;
                     }
                     std::copy(enc.begin(), enc.end(),
@@ -1577,14 +1576,14 @@ namespace chm {
         }
 
         // ---------------------------------------------------------------------------
-        // Blocos de metadados da seção MSCompressed
+        // MSCompressed section metadata blocks
         // ---------------------------------------------------------------------------
         std::vector<uint8_t> makeNameList() {
             const char *names[] = {"Uncompressed", "MSCompressed"};
 
             std::vector<uint8_t> v;
-            // O primeiro campo e o offset do terminador da primeira string, medido
-            // a partir do início do arquivo (0x1E para "Uncompressed").
+            // The first field is the offset of the terminator of the first string, measured
+            // from the start of the file (0x1E for "Uncompressed").
             w16(v, static_cast<uint16_t>(2 + 4 + 2 * std::strlen(names[0])));
             w16(v, 2);
             for (const char *nm: names) {
@@ -1605,19 +1604,19 @@ namespace chm {
 
         std::vector<uint8_t> makeControlData() {
             std::vector<uint8_t> v;
-            w32(v, 6); // campo desconhecido (0x06 nos CHMs do HHA)
+            w32(v, 6); // unknown field (0x06 in HHA CHMs)
             raw(v, "LZXC", 4);
-            w32(v, 2); // versao
-            w32(v, 2); // resetInterval, em frames de 0x8000 bytes
-            w32(v, 2); // windowSize, em frames de 0x8000 bytes
+            w32(v, 2); // version
+            w32(v, 2); // resetInterval, in 0x8000-byte frames
+            w32(v, 2); // windowSize, in 0x8000-byte frames
             w32(v, 1); // windowsPerReset
             w32(v, 0);
             return v;
         }
 
         std::vector<uint8_t> makeResetTable(const lzx::Result &lz) {
-            // A tabela tem um offset por frame de 32 KiB. O último offset também
-            // aponta para o fim do fluxo, como observado em CHMs reais.
+            // The table has one offset per 32 KiB frame. The last offset also
+            // points to the end of the stream, as observed in real CHMs.
             std::vector<uint64_t> entries = lz.resetOffsets;
             if (entries.empty()) entries.push_back(0);
 
@@ -1634,7 +1633,7 @@ namespace chm {
         }
 
         // ---------------------------------------------------------------------------
-        // Entrada pendente: dados ainda não posicionados numa seção
+        // Pending entry: data not yet positioned in a section
         // ---------------------------------------------------------------------------
         struct Pending {
             std::string name;
@@ -1653,7 +1652,7 @@ namespace chm {
 
         Internal in = buildInternal(options, files);
 
-        // --- Seção 1: todos os arquivos comprimidos com LZX --------------------
+        // --- Section 1: all files compressed with LZX --------------------
         std::vector<Pending> compressed;
         auto addCompressed = [&](const std::string &name,
                                  const std::vector<uint8_t> &data) {
@@ -1667,7 +1666,7 @@ namespace chm {
         addCompressed("/#URLTBL", in.urltbl);
         addCompressed("/#URLSTR", in.urlstr);
 
-        // Arquivos internos de índice do HTML Help Workshop.
+        // Internal index files from the HTML Help Workshop.
         addCompressed("/$FIftiMain", in.fti);
         addCompressed("/$OBJINST", in.objinst);
         addCompressed("/$WWAssociativeLinks/Property", in.aLinksProperty);
@@ -1684,13 +1683,13 @@ namespace chm {
         }
         const lzx::Result lz = lzx::compress(sec1);
 
-        // --- Seção 0: arquivos não comprimidos ---------------------------------
+        // --- Section 0: uncompressed files ---------------------------------
         std::vector<Pending> rawFiles;
         auto addRaw = [&](const std::string &name,
                           const std::vector<uint8_t> &data) {
             rawFiles.push_back({name, 0, data, 0, 0});
         };
-        // O HHC coloca NameList no início da seção 0, seguido de #SYSTEM.
+        // The HHC places NameList at the beginning of section 0, followed by #SYSTEM.
         addRaw("::DataSpace/NameList", makeNameList());
         addRaw("/#SYSTEM", in.system);
         addRaw("/#ITBITS", {});
@@ -1711,20 +1710,20 @@ namespace chm {
             sec0.insert(sec0.end(), p.data.begin(), p.data.end());
         }
 
-        // Content: ponteiro para o fluxo LZX; seus dados ficam depois da seção 0.
+        // Content: pointer to the LZX stream; its data comes after section 0.
         rawFiles.push_back({
             "::DataSpace/Storage/MSCompressed/Content", 0, {},
             static_cast<uint64_t>(sec0.size()), lz.stream.size()
         });
 
-        // Diretorios (entries de tamanho zero).
+        // Directories (zero-size entries).
         rawFiles.push_back({"/", 0, {}, 0, 0});
         rawFiles.push_back({"/$WWAssociativeLinks/", 0, {}, 0, 0});
         rawFiles.push_back({"/$WWKeywordLinks/", 0, {}, 0, 0});
         rawFiles.push_back({kTransformDir, 0, {}, 0, 0});
 
         std::vector<DirEntry> entries;
-        // O HHC registra arquivos vazios com offset zero.
+        // HHC registers empty files with offset zero.
         entries.reserve(rawFiles.size());
         for (const Pending &p: rawFiles) {
             entries.push_back({
@@ -1747,7 +1746,7 @@ namespace chm {
         const uint64_t contentOffset = 0x60 + 0x18 + 0x54 + dirBytes;
         const uint64_t totalLen = contentOffset + sec0.size() + lz.stream.size();
 
-        // --- ITSF + tabela de seções -------------------------------------------
+        // --- ITSF + section table -------------------------------------------
         std::vector<uint8_t> out;
         raw(out, "ITSF", 4);
         w32(out, 3);
@@ -1760,7 +1759,7 @@ namespace chm {
         w64(out, 0x60); // OffsetHS0
         w64(out, 0x18); // LengthHS0
         w64(out, 0x78); // OffsetHS1
-        w64(out, 0x54 + dirBytes); // LengthHS1 (cabecalho + chunks ITSP)
+        w64(out, 0x54 + dirBytes); // LengthHS1 (header + ITSP chunks)
         w64(out, contentOffset); // OffsetCS0
 
         // --- Header Section 0 ---------------------------------------------------
@@ -1789,32 +1788,32 @@ namespace chm {
         zeros(out, 12);
 
         if (out.size() != 0xCC) {
-            error = "tamanho inesperado do cabecalho CHM";
+            error = "unexpected CHM header size";
             return false;
         }
 
         for (const Chunk &c: dir.pmgl) raw(out, c.data.data(), c.data.size());
         for (const Chunk &c: dir.pmgi) raw(out, c.data.data(), c.data.size());
         if (out.size() != contentOffset) {
-            error = "offset de conteudo inconsistente";
+            error = "inconsistent content offset";
             return false;
         }
         out.insert(out.end(), sec0.begin(), sec0.end());
         out.insert(out.end(), lz.stream.begin(), lz.stream.end());
 
         if (out.size() != totalLen) {
-            error = "tamanho final inconsistente";
+            error = "inconsistent final size";
             return false;
         }
 
         std::ofstream f(outPath, std::ios::binary | std::ios::trunc);
         if (!f) {
-            error = "nao foi possivel criar: " + outPath;
+            error = "could not create: " + outPath;
             return false;
         }
         f.write(reinterpret_cast<const char *>(out.data()), static_cast<std::streamsize>(out.size()));
         if (!f) {
-            error = "falha ao escrever: " + outPath;
+            error = "failed to write: " + outPath;
             return false;
         }
         return true;

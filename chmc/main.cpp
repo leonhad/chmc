@@ -65,7 +65,7 @@ namespace {
         return out;
     }
 
-    // Nome interno usado no diretorio do CHM: sempre com '/' e sem query/fragmento.
+    // Internal name used in the CHM directory: always with '/' and without query/fragment.
     std::string internalName(std::string s) {
         s = trim(s);
         if (const size_t cut = s.find_first_of("?#"); cut != std::string::npos) s.resize(cut);
@@ -83,8 +83,8 @@ namespace {
         if (!f) return false;
         const auto size = f.tellg();
         f.seekg(0, std::ios::beg);
-        out.resize(static_cast<size_t>(size));
-        f.read(reinterpret_cast<char *>(out.data()), static_cast<std::streamsize>(size));
+        out.resize(size);
+        f.read(reinterpret_cast<char *>(out.data()), size);
         return static_cast<bool>(f);
     }
 
@@ -137,7 +137,7 @@ namespace {
     bool parseHhp(const fs::path &path, Hhp &hhp, std::string &error) {
         std::string text;
         if (!readText(path, text)) {
-            error = "nao foi possivel ler: " + path.string();
+            error = "could not read: " + path.string();
             return false;
         }
         std::istringstream in(text);
@@ -283,7 +283,7 @@ namespace {
         std::string s = trim(line);
         const size_t eq = s.find('=');
         if (eq == std::string::npos) {
-            error = "linha [WINDOWS] invalida: " + line;
+            error = "invalid [WINDOWS] line: " + line;
             return false;
         }
         w.name = trim(s.substr(0, eq));
@@ -422,7 +422,7 @@ namespace {
     bool parseHhc(const fs::path &path, std::vector<chm::TocEntry> &toc, std::string &error) {
         std::string text;
         if (!readText(path, text)) {
-            error = "nao foi possivel ler: " + path.string();
+            error = "could not read: " + path.string();
             return false;
         }
         std::istringstream in(text);
@@ -509,7 +509,7 @@ namespace {
                   std::string &error) {
         std::string text;
         if (!readText(path, text)) {
-            error = "nao foi possivel ler: " + path.string();
+            error = "could not read: " + path.string();
             return false;
         }
         std::string low = text;
@@ -607,7 +607,7 @@ namespace {
     }
 
     // ---------------------------------------------------------------------------
-    // Arquivos e referências
+    // Files and references
     // ---------------------------------------------------------------------------
     bool isAsset(const std::string &name) {
         const std::string ext = lower(fs::path(name).extension().string());
@@ -644,11 +644,11 @@ namespace {
     }
 
     void printUsage() {
-        std::cerr << "Uso: chm_builder <projeto.hhp> [arquivo_saida.chm]\n"
+        std::cerr << "Usage: chmc <project.hhp> [output_file.chm]\n"
                 << "\n"
-                << "Le o .hhp, o .hhc e o .hhk indicados no projeto e gera um CHM ITSF v3\n"
-                << "com a secao de conteudo comprimida em LZX. Se a saida nao for informada,\n"
-                << "usa-se o campo 'Compiled file' do .hhp.\n";
+                << "Reads the .hhp, .hhc, and .hhk files specified in the project and generates\n"
+                << "an ITSF v3 CHM with the content section compressed using LZX. If the output\n"
+                << "is not specified, it uses the 'Compiled file' field from the .hhp.\n";
     }
 } // namespace
 
@@ -663,7 +663,7 @@ int main(int argc, char **argv) {
     std::string error;
     Hhp hhp;
     if (!parseHhp(hhpPath, hhp, error)) {
-        std::cerr << "Erro: " << error << "\n";
+        std::cerr << "Error: " << error << "\n";
         return 1;
     }
 
@@ -673,7 +673,7 @@ int main(int argc, char **argv) {
     const std::string compiledRel = option(hhp, "Compiled file", "output.chm");
 
     chm::BuildOptions opt;
-    opt.title = option(hhp, "Title", "Sem titulo");
+    opt.title = option(hhp, "Title", "Untitled");
     opt.defaultTopic = internalName(defaultRel);
     opt.contentsFile = fs::path(contentsRel).filename().string();
     opt.indexFile = fs::path(indexRel).filename().string();
@@ -691,7 +691,7 @@ int main(int argc, char **argv) {
         chm::WindowDef w;
         std::string werr;
         if (!parseWindowLine(wline, w, werr)) {
-            std::cerr << "Aviso: " << werr << "\n";
+            std::cerr << "Warning: " << werr << "\n";
             continue;
         }
         opt.windows.push_back(std::move(w));
@@ -705,12 +705,12 @@ int main(int argc, char **argv) {
         auto abs = fs::path(rel);
         if (!abs.is_absolute()) abs = base / abs;
         if (std::error_code ec; !fs::is_regular_file(abs, ec)) {
-            if (required) std::cerr << "Aviso: arquivo nao encontrado: " << abs << "\n";
+            if (required) std::cerr << "Warning: file not found: " << abs << "\n";
             return false;
         }
         std::vector<uint8_t> data;
         if (!readBytes(abs, data)) {
-            if (required) std::cerr << "Aviso: falha ao ler: " << abs << "\n";
+            if (required) std::cerr << "Warning: failed to read: " << abs << "\n";
             return false;
         }
         names.insert(name);
@@ -718,23 +718,23 @@ int main(int argc, char **argv) {
         return true;
     };
 
-    // Ordem: [FILES] do HHP, sumário, índice, tópico inicial e hhc/hhk.
+    // Order: [FILES] from HHP, table of contents, index, starting topic, and hhc/hhk.
     for (const std::string &f: hhp.files) addFile(f, true);
     if (!contentsRel.empty()) addFile(contentsRel, true);
     if (!indexRel.empty()) addFile(indexRel, true);
     addFile(defaultRel, true);
 
     if (!parseHhc(base / fs::path(contentsRel), opt.toc, error)) {
-        std::cerr << "Erro: " << error << "\n";
+        std::cerr << "Error: " << error << "\n";
         return 1;
     }
     if (!parseHhk(base / fs::path(indexRel), opt.keywords, error)) {
-        std::cerr << "Erro: " << error << "\n";
+        std::cerr << "Error: " << error << "\n";
         return 1;
     }
     for (const chm::TocEntry &e: opt.toc) addFile(e.local, true);
 
-    // Imagens/CSS referenciados por HTML e pelo próprio hhc/hhk.
+    // Images/CSS referenced by HTML and by hhc/hhk itself.
     std::vector<std::string> pendingAssets;
     for (const chm::InputFile &f: files) {
         for (const std::string &ref: assetReferences(f.data)) {
@@ -743,7 +743,7 @@ int main(int argc, char **argv) {
     }
     for (const std::string &ref: pendingAssets) addFile(ref, false);
 
-    // Garante que arquivos referenciados por [WINDOWS] sejam considerados.
+    // Ensure that files referenced by [WINDOWS] are considered.
     for (const chm::WindowDef &w: opt.windows) {
         if (!w.toc.empty()) addFile(w.toc, false);
         if (!w.index.empty()) addFile(w.index, false);
@@ -752,14 +752,14 @@ int main(int argc, char **argv) {
     }
 
     if (!chm::build(outPath.string(), files, opt, error)) {
-        std::cerr << "Erro ao gerar CHM: " << error << "\n";
+        std::cerr << "Error generating CHM: " << error << "\n";
         return 1;
     }
 
-    std::cout << "CHM gerado: " << outPath << "\n"
-            << "  arquivos: " << files.size()
-            << ", sumario: " << opt.toc.size()
-            << ", palavras-chave: " << opt.keywords.size()
-            << ", janelas: " << opt.windows.size() << "\n";
+    std::cout << "CHM generated: " << outPath << "\n"
+            << "  files: " << files.size() << "\n"
+            << "  table of contents: " << opt.toc.size() << "\n"
+            << "  keywords: " << opt.keywords.size() << "\n"
+            << "  windows: " << opt.windows.size() << "\n";
     return 0;
 }

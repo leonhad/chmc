@@ -18,7 +18,7 @@ static std::vector<uint8_t> readFile(const fs::path &p) {
 
 int main(int argc, char **argv) {
     if (argc < 3) {
-        std::cerr << "Uso: test_chm <arquivo.chm> <diretorio-original>\n";
+        std::cerr << "Usage: test_chm <file.chm> <original-directory>\n";
         return 2;
     }
     const std::string chmPath = argv[1];
@@ -26,12 +26,12 @@ int main(int argc, char **argv) {
 
     struct mschm_decompressor *chmd = mspack_create_chm_decompressor(mspack_default_system);
     if (!chmd) {
-        std::cerr << "falha ao criar decompressor CHM\n";
+        std::cerr << "failed to create CHM decompressor\n";
         return 2;
     }
     struct mschmd_header *chm = chmd->open(chmd, chmPath.c_str());
     if (!chm) {
-        std::cerr << "falha ao abrir CHM erro=" << chmd->last_error(chmd) << "\n";
+        std::cerr << "failed to open CHM error=" << chmd->last_error(chmd) << "\n";
         mspack_destroy_chm_decompressor(chmd);
         return 1;
     }
@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
             << " dir_offset=" << chm->dir_offset
             << " chunks=" << chm->num_chunks << "\n";
     for (struct mschmd_file *f = chm->sysfiles; f; f = f->next) {
-        std::cout << "SYS " << f->filename << " secao=" << f->section->id
+        std::cout << "SYS " << f->filename << " section=" << f->section->id
                 << " offset=" << f->offset << " bytes=" << f->length << "\n";
     }
 
@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
         std::string name = f->filename;
         while (!name.empty() && name[0] == '/') name.erase(name.begin());
         if (name.empty() || name.rfind("::", 0) == 0 || name[0] == '#') {
-            std::cout << "SISTEMA " << f->filename << " secao=" << f->section->id
+            std::cout << "SYSTEM " << f->filename << " section=" << f->section->id
                     << " bytes=" << f->length << "\n";
             continue;
         }
@@ -60,15 +60,15 @@ int main(int argc, char **argv) {
         const fs::path extracted = fs::temp_directory_path() / ("chmtest_" + name);
         const int err = chmd->extract(chmd, f, extracted.string().c_str());
         if (err != MSPACK_ERR_OK) {
-            std::cerr << "FALHA extract " << f->filename << " erro=" << err << "\n";
+            std::cerr << "FAIL extract " << f->filename << " error=" << err << "\n";
             ++failures;
             continue;
         }
         const auto expected = readFile(original);
         const auto actual = readFile(extracted);
         if (expected != actual) {
-            std::cerr << "DIVERGENCIA " << f->filename << " esperado=" << expected.size()
-                    << " obtido=" << actual.size() << "\n";
+            std::cerr << "DIVERGENCE " << f->filename << " expected=" << expected.size()
+                    << " got=" << actual.size() << "\n";
             ++failures;
         } else {
             std::cout << "OK " << f->filename << " (" << actual.size() << " bytes)\n";
@@ -80,6 +80,6 @@ int main(int argc, char **argv) {
 
     chmd->close(chmd, chm);
     mspack_destroy_chm_decompressor(chmd);
-    std::cerr << "verificados=" << checked << " falhas=" << failures << "\n";
+    std::cerr << "checked=" << checked << " failures=" << failures << "\n";
     return failures == 0 && checked > 0 ? 0 : 1;
 }
