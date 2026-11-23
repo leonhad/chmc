@@ -428,6 +428,36 @@ bool parseHhc(const fs::path& path, std::vector<chm::TocEntry>& toc, std::string
     return true;
 }
 
+static bool findAttrRange(const std::string& s, const std::string& low,
+                          size_t start, size_t limit,
+                          const char* attr, std::string& value) {
+    const size_t alen = std::strlen(attr);
+    size_t pos = start;
+    while (pos < limit) {
+        pos = low.find(attr, pos);
+        if (pos == std::string::npos || pos >= limit) return false;
+        if (pos > 0) {
+            const char before = s[pos - 1];
+            if (!std::isspace(static_cast<unsigned char>(before)) && before != '<' && before != '/') {
+                ++pos;
+                continue;
+            }
+        }
+        size_t p = pos + alen;
+        while (p < limit && std::isspace(static_cast<unsigned char>(s[p]))) ++p;
+        if (p >= limit || s[p] != '=') { ++pos; continue; }
+        ++p;
+        while (p < limit && std::isspace(static_cast<unsigned char>(s[p]))) ++p;
+        if (p >= limit || (s[p] != '"' && s[p] != '\'')) { ++pos; continue; }
+        const char q = s[p++];
+        const size_t end = s.find(q, p);
+        if (end == std::string::npos || end > limit) { ++pos; continue; }
+        value = decodeEntities(s.substr(p, end - p));
+        return true;
+    }
+    return false;
+}
+
 bool parseHhk(const fs::path& path, std::vector<chm::KeywordEntry>& keywords,
               std::string& error) {
     std::string text;
@@ -467,10 +497,42 @@ bool parseHhk(const fs::path& path, std::vector<chm::KeywordEntry>& keywords,
         chm::KeywordEntry item;
         size_t paramEnd = low.find("</li", endTag);
         if (paramEnd == std::string::npos) paramEnd = text.size();
-        const std::string block = text.substr(endTag, paramEnd - endTag);
-        std::string v;
-        if (paramValue(block, "Name", v)) item.name = trim(v);
-        if (paramValue(block, "Local", v)) item.local = v;
+
+        size_t pp = endTag;
+        while (pp < paramEnd) {
+            size_t np = low.find("name", pp);
+            if (np == std::string::npos || np >= paramEnd) break;
+            if (np > 0) {
+                const char before = text[np - 1];
+                if (!std::isspace(static_cast<unsigned char>(before)) && before != '<' && before != '/') {
+                    pp = np + 1;
+                    continue;
+                }
+            }
+            size_t p2 = np + 4;
+            while (p2 < paramEnd && std::isspace(static_cast<unsigned char>(text[p2]))) ++p2;
+            if (p2 >= paramEnd || text[p2] != '=') { pp = np + 4; continue; }
+            ++p2;
+            while (p2 < paramEnd && std::isspace(static_cast<unsigned char>(text[p2]))) ++p2;
+            if (p2 >= paramEnd || (text[p2] != '"' && text[p2] != '\'')) { pp = np + 4; continue; }
+            const char q = text[p2++];
+            const size_t ne = text.find(q, p2);
+            if (ne == std::string::npos || ne > paramEnd) { pp = np + 4; continue; }
+
+            const size_t nlen = ne - p2;
+            const bool isName = (nlen == 4 && low.compare(p2, 4, "name") == 0);
+            const bool isLocal = (nlen == 5 && low.compare(p2, 5, "local") == 0);
+            const size_t afterName = ne + 1;
+            if (isName || isLocal) {
+                std::string val;
+                if (findAttrRange(text, low, afterName, paramEnd, "value", val)) {
+                    if (isName) item.name = trim(val);
+                    else item.local = val;
+                }
+            }
+            pp = afterName;
+        }
+
         stack.push_back(std::move(item));
         pos = endTag;
     }
