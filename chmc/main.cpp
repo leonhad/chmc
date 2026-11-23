@@ -561,7 +561,7 @@ namespace {
 } // namespace
 
 int main(int argc, char **argv) {
-    std::cout << "CHM Compiler\n";
+    std::cout << "CHM Compiler\n\n";
 
     if (argc < 2) {
         printUsage();
@@ -592,14 +592,15 @@ int main(int argc, char **argv) {
     opt.lcid = parseLcid(option(hhp, "Language"), 0x0416);
     opt.timestamp = fileTime();
     opt.unixTime = static_cast<uint32_t>(std::time(nullptr));
+    opt.compiledName = fs::path(compiledRel).stem().string();
 
     auto startTime = std::chrono::steady_clock::now();
 
     fs::path outPath = argc > 2 ? fs::path(argv[2]) : base / fs::path(compiledRel);
     if (!outPath.is_absolute()) outPath = fs::absolute(outPath);
-    opt.compiledName = fs::path(compiledRel).stem().string();
+    outPath = fs::weakly_canonical(outPath);
 
-    std::cout << "Compiling: " << outPath << "\n";
+    std::cout << "Compiling: " << outPath.string() << "\n";
 
     for (const std::string &wline: hhp.windows) {
         chm::WindowDef w;
