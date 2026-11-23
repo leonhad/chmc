@@ -209,7 +209,7 @@ namespace {
         bool inQuote = false;
         char quote = 0;
         int bracketDepth = 0;
-        for (const char c : line) {
+        for (const char c: line) {
             if (inQuote) {
                 cur.push_back(c);
                 if (c == quote) inQuote = false;
@@ -561,6 +561,8 @@ namespace {
 } // namespace
 
 int main(int argc, char **argv) {
+    std::cout << "CHM Compiler\n";
+
     if (argc < 2) {
         printUsage();
         return 1;
@@ -591,9 +593,13 @@ int main(int argc, char **argv) {
     opt.timestamp = fileTime();
     opt.unixTime = static_cast<uint32_t>(std::time(nullptr));
 
+    auto startTime = std::chrono::steady_clock::now();
+
     fs::path outPath = argc > 2 ? fs::path(argv[2]) : base / fs::path(compiledRel);
     if (!outPath.is_absolute()) outPath = fs::absolute(outPath);
     opt.compiledName = fs::path(compiledRel).stem().string();
+
+    std::cout << "Compiling: " << outPath << "\n";
 
     for (const std::string &wline: hhp.windows) {
         chm::WindowDef w;
@@ -664,11 +670,81 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    std::cout << "CHM generated: " << outPath << "\n"
-            << "  files: " << files.size() << "\n"
-            << "  table of contents: " << opt.toc.size() << "\n"
-            << "  keywords: " << opt.keywords.size() << "\n"
-            << "  windows: " << opt.windows.size() << "\n";
+    auto endTime = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
+    int minutes = static_cast<int>(duration / 60);
+    int seconds = static_cast<int>(duration % 60);
+
+    // Count topics (HTML/HTM files)
+    size_t nTopics = 0;
+    for (const auto &f: files) {
+        const std::string ext = lower(fs::path(f.internalName).extension().string());
+        if (ext == ".htm" || ext == ".html") ++nTopics;
+    }
+
+    // Count graphics (image files)
+    size_t nGraphics = 0;
+    for (const auto &f: files) {
+        const std::string ext = lower(fs::path(f.internalName).extension().string());
+        if (ext == ".gif" || ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".svg") {
+            ++nGraphics;
+        }
+    }
+
+    // Count local and internet links from all HTML files
+    size_t nLocalLinks = 0;
+    size_t nInternetLinks = 0;
+    std::set<std::string> seenLinks;
+    for (const auto &f: files) {
+        const std::string ext = lower(fs::path(f.internalName).extension().string());
+        if (ext == ".htm" || ext == ".html") {
+            const std::string s(reinterpret_cast<const char *>(f.data.data()), f.data.size());
+            const std::string sl = lower(s);
+            size_t pos = 0;
+            while ((pos = sl.find("href=", pos)) != std::string::npos) {
+                size_t p = pos + 5;
+                while (p < s.size() && std::isspace(static_cast<unsigned char>(s[p]))) ++p;
+                std::string href;
+                if (p < s.size() && (s[p] == '"' || s[p] == '\'')) {
+                    const char quote = s[p++];
+                    const size_t end = s.find(quote, p);
+                    if (end != std::string::npos) href = s.substr(p, end - p);
+                } else {
+                    size_t end = p;
+                    while (end < s.size() && !std::isspace(static_cast<unsigned char>(s[end])) && s[end] != '>')
+                        ++end;
+                    if (end > p) href = s.substr(p, end - p);
+                }
+                pos += 5;
+                if (href.empty()) continue;
+
+                // Skip anchor links (#id)
+                if (href[0] == '#') continue;
+
+                // Use lowercase for dedup
+                const std::string hrefLower = lower(href);
+                if (seenLinks.count(hrefLower)) continue;
+                seenLinks.insert(hrefLower);
+
+                if (hrefLower.rfind("http://", 0) == 0 || hrefLower.rfind("https://", 0) == 0) {
+                    ++nInternetLinks;
+                } else {
+                    ++nLocalLinks;
+                }
+            }
+        }
+    }
+
+    std::cout << "\n"
+            << "Compile time: " << minutes << " minutes, " << seconds << " seconds\n"
+            << nTopics << "\tTopics\n"
+            << nLocalLinks << "\tLocal links\n"
+            << nInternetLinks << "\tInternet links\n"
+            << nGraphics << "\tGraphics\n"
+            << files.size() << "\tFiles\n"
+            << opt.toc.size() << "\tTable of contents\n"
+            << opt.keywords.size() << "\tKeywords\n"
+            << opt.windows.size() << "\tWindows\n";
 
     return 0;
 }
