@@ -1320,7 +1320,12 @@ bool buildDirectory(const std::vector<DirEntry>& entries,
     sorted.reserve(entries.size());
     for (const DirEntry& e : entries) sorted.push_back(&e);
     std::sort(sorted.begin(), sorted.end(),
-              [](const DirEntry* a, const DirEntry* b) { return a->name < b->name; });
+              [](const DirEntry* a, const DirEntry* b) {
+                  const std::string la = lower(a->name);
+                  const std::string lb = lower(b->name);
+                  if (la != lb) return la < lb;
+                  return a->name < b->name;
+              });
 
     dir.pmgl.clear();
     dir.pmgi.clear();

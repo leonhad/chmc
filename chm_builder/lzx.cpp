@@ -458,16 +458,10 @@ void encodeInterval(const std::vector<uint8_t>& data, BitWriter& bw,
         if (t.mainSymbol < mainFreq.size()) mainFreq[t.mainSymbol]++;
         if (t.lengthSymbol >= 0 && t.lengthSymbol < static_cast<int>(lenFreq.size())) lenFreq[t.lengthSymbol]++;
     }
-    std::vector<uint32_t> mainFreq2 = mainFreq;
-    for (auto &f : mainFreq2) if (f == 0) f = 1;
-    std::vector<uint8_t> mainLen = computeLengths(mainFreq2, 16);
-    std::vector<uint32_t> lenFreq2 = lenFreq;
-    for (auto &f : lenFreq2) if (f == 0) f = 1;
-    std::vector<uint8_t> lengthLen = computeLengths(lenFreq2, 16);
-    Huffman mainHuff = buildHuffman(mainLen);
-    Huffman lengthHuff = buildHuffman(lengthLen);
-    if (!mainHuff.complete) { mainLen = fixedLengths(kMainTreeSymbols); mainHuff = buildHuffman(mainLen); }
-    if (!lengthHuff.complete) { lengthLen = fixedLengths(kNumSecondaryLengths); lengthHuff = buildHuffman(lengthLen); }
+    const std::vector<uint8_t> mainLen = fixedLengths(kMainTreeSymbols);
+    const std::vector<uint8_t> lengthLen = fixedLengths(kNumSecondaryLengths);
+    const Huffman mainHuff = buildHuffman(mainLen);
+    const Huffman lengthHuff = buildHuffman(lengthLen);
 
     // Cabecalho E8 desabilitado. Ele e lido apenas no inicio do intervalo
     // de reset (o decodificador relê o estado de Huffman a cada 2 frames).
