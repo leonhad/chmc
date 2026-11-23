@@ -761,5 +761,6 @@ int main(int argc, char **argv) {
             << "  table of contents: " << opt.toc.size() << "\n"
             << "  keywords: " << opt.keywords.size() << "\n"
             << "  windows: " << opt.windows.size() << "\n";
+
     return 0;
 }
