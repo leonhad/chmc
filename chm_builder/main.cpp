@@ -51,7 +51,7 @@ std::string percentDecode(std::string s) {
     for (size_t i = 0; i < s.size(); ++i) {
         if (s[i] == '%' && i + 2 < s.size() && std::isxdigit(static_cast<unsigned char>(s[i + 1])) &&
             std::isxdigit(static_cast<unsigned char>(s[i + 2]))) {
-            const auto hex = [](char c) {
+            const auto hex = [](const char c) {
                 return static_cast<unsigned>(std::isdigit(static_cast<unsigned char>(c))
                                                  ? c - '0' : (std::tolower(c) - 'a' + 10));
             };
@@ -81,7 +81,7 @@ std::string internalName(std::string s) {
 bool readBytes(const fs::path& p, std::vector<uint8_t>& out) {
     std::ifstream f(p, std::ios::binary);
     if (!f) return false;
-    out.assign(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>());
+    out.assign(std::istreambuf_iterator(f), std::istreambuf_iterator<char>());
     return true;
 }
 
@@ -104,7 +104,7 @@ uint64_t fileTime() {
 #endif
 }
 
-uint32_t parseLcid(const std::string& raw, uint32_t fallback) {
+uint32_t parseLcid(const std::string& raw, const uint32_t fallback) {
     std::string s = trim(raw);
     if (s.empty()) return fallback;
     const size_t sp = s.find_first_of(" \t");
@@ -173,7 +173,7 @@ bool parseUint32Field(const std::string& raw, uint32_t& out) {
     if (s.empty()) return false;
     try {
         size_t used = 0;
-        unsigned long v = lower(s).rfind("0x", 0) == 0 ? std::stoul(s, &used, 16)
+        const unsigned long v = lower(s).rfind("0x", 0) == 0 ? std::stoul(s, &used, 16)
                                                         : std::stoul(s, &used, 10);
         if (used != s.size()) return false;
         out = static_cast<uint32_t>(v);
@@ -188,7 +188,7 @@ bool parseInt32Field(const std::string& raw, int32_t& out) {
     if (s.empty()) return false;
     try {
         size_t used = 0;
-        long v = lower(s).rfind("0x", 0) == 0 || lower(s).rfind("-0x", 0) == 0
+        const long v = lower(s).rfind("0x", 0) == 0 || lower(s).rfind("-0x", 0) == 0
                      ? std::stol(s, &used, 0)
                      : std::stol(s, &used, 10);
         if (used != s.size()) return false;
@@ -276,10 +276,10 @@ bool parseWindowLine(const std::string& line, chm::WindowDef& w, std::string& er
     }
     w.name = trim(s.substr(0, eq));
     const std::vector<std::string> f = splitWindowFields(s.substr(eq + 1));
-    auto strField = [&](size_t i) -> std::string {
+    auto strField = [&](const size_t i) -> std::string {
         return i < f.size() ? unquoteField(f[i]) : std::string();
     };
-    auto u32Field = [&](size_t i, uint32_t& dst) {
+    auto u32Field = [&](const size_t i, uint32_t& dst) {
         if (i < f.size()) parseUint32Field(f[i], dst);
     };
     w.caption = strField(0);
@@ -327,7 +327,7 @@ bool findAttr(const std::string& line, const std::string& name, std::string& val
     return false;
 }
 
-static size_t findCi(const std::string& hay, const char* needle, size_t pos = 0) {
+static size_t findCi(const std::string& hay, const char* needle, const size_t pos = 0) {
     const size_t nlen = std::strlen(needle);
     if (nlen == 0) return pos;
     for (size_t i = pos; i + nlen <= hay.size(); ++i) {
@@ -430,7 +430,7 @@ bool parseHhc(const fs::path& path, std::vector<chm::TocEntry>& toc, std::string
 }
 
 static bool findAttrRange(const std::string& s, const std::string& low,
-                          size_t start, size_t limit,
+                          const size_t start, const size_t limit,
                           const char* attr, std::string& value) {
     const size_t alen = std::strlen(attr);
     size_t pos = start;
@@ -643,7 +643,7 @@ int main(int argc, char** argv) {
     }
     std::vector<chm::InputFile> files;
     std::set<std::string> names;
-        auto addFile = [&](const std::string& rel, bool required) -> bool {
+        auto addFile = [&](const std::string& rel, const bool required) -> bool {
         if (rel.empty()) return true;
         const std::string name = internalName(rel);
         if (name == "/" || names.count(name)) return true;
