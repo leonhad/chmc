@@ -679,8 +679,8 @@ int main(int argc, char **argv) {
     // Count topics (HTML/HTM files)
     size_t nTopics = 0;
     for (const auto &f: files) {
-        const std::string ext = lower(fs::path(f.internalName).extension().string());
-        if (ext == ".htm" || ext == ".html") ++nTopics;
+        if (const std::string ext = lower(fs::path(f.internalName).extension().string());
+            ext == ".htm" || ext == ".html") ++nTopics;
     }
 
     // Count graphics (image files)
