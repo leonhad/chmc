@@ -2,9 +2,9 @@
 
 Este diretório contém uma implementação autocontida de:
 
-- compressor **LZX** no perfil usado por CHM (`lzx.h` / `lzx.cpp`);
-- montador de container **ITSF v3 / ITSP v1** com diretório PMGL/PMGI (`chm.h` / `chm.cpp`);
-- CLI que lê um projeto `.hhp` e os arquivos `.hhc` / `.hhk` pré-existentes (`main.cpp`).
+- compressor **LZX** no perfil usado por CHM (`chm_builder/lzx.h` / `lzx.cpp`);
+- montador de container **ITSF v3 / ITSP v1** com diretório PMGL/PMGI (`chm_builder/chm.h` / `chm.cpp`);
+- CLI que lê um projeto `.hhp` e os arquivos `.hhc` / `.hhk` pré-existentes (`chm_builder/main.cpp`).
 
 ## Pré-requisitos
 
@@ -24,7 +24,7 @@ estilo.css
 logo.png
 ```
 
-Veja o exemplo completo em `../exemplo/`.
+Veja o exemplo completo em `exemplo`.
 
 ## Compilação
 
@@ -41,7 +41,7 @@ Também há um `Makefile` na raiz do repositório:
 make                 # compila ../chm_builder.exe
 make run             # gera ../exemplo/projeto.chm
 make clean           # remove objetos e executáveis
-make test LIBMSPACK=/caminho/para/libmspack
+make test                # valida com libmspack (incluído no projeto)
 ```
 
 ## Uso
@@ -98,23 +98,13 @@ pelo decodificador.
 
 ## Validação
 
-Os fontes `test_lzx.cpp` e `test_chm.cpp` usam o `lzxd.c` e o `chmd.c` do
+Os fontes `chm_builder/test_lzx.cpp` e `test_chm.cpp` usam o `lzxd.c` e o `chmd.c` do
 [libmspack](https://github.com/kyz/libmspack) como decodificadores independentes.
+O libmspack está incluído no diretório `libmspack/` do projeto.
 
 ```bash
-# Supondo libmspack em ../../libmspack (ajuste LIBMSPACK conforme necessário)
-LIBMSPACK=/caminho/para/libmspack
-gcc -I "$LIBMSPACK" -c "$LIBMSPACK/lzxd.c" -o lzxd.o
-gcc -I "$LIBMSPACK" -c "$LIBMSPACK/chmd.c" -o chmd.o
-gcc -I "$LIBMSPACK" -c "$LIBMSPACK/system.c" -o mspack_system.o
-
-g++ -std=c++17 -O2 -I "$LIBMSPACK" \
-    lzx.cpp test_lzx.cpp lzxd.o mspack_system.o -o test_lzx
-./test_lzx /tmp/lzx_teste
-
-g++ -std=c++17 -O2 -I "$LIBMSPACK" \
-    test_chm.cpp chmd.o lzxd.o mspack_system.o -o test_chm
-./test_chm ../exemplo/projeto.chm ../exemplo
+make test-lzx   # valida o compressor LZX
+make test-chm   # valida o CHM gerado
 ```
 
 A saída esperada é `OK` para o teste LZX e `OK <arquivo>` para cada arquivo do exemplo,
@@ -130,7 +120,7 @@ Visualizador de Ajuda do Windows (`hh.exe`), exibindo a janela `HH Parent` e o t
 
 O gerador preenche os blobs internos reais:
 
-- `$OBJINST` contém a tabela de 256 × 10 bytes de `objinst_table.h` e os dois objetos COM;
+- `$OBJINST` contém a tabela de 256 × 10 bytes de `chm_builder/objinst_table.h` e os dois objetos COM;
   no exemplo o resultado é byte-idêntico ao blob do HHC de referência (2.715 bytes).
 - `$WWKeywordLinks/{BTree,Data,Map,Property}` é montado dos pares `Name`/`Local` do `.hhk`.
   BTree com blocos de 2.048 bytes, 13 bytes por entrada de Data, Map e Property com oito
@@ -158,4 +148,4 @@ com os do HHC, e o `$FIftiMain` foi decodificado com a semântica do leitor do F
 - Não há suporte a ActiveX, macros, *embedded windows* personalizadas nem scripts
   de navegação especiais.
 
-Para detalhes binários, consulte `../formato_chm.md` e `../formato_lzx.md`.
+Para detalhes binários, consulte `formato_chm.md` e `formato_lzx.md`.
