@@ -129,16 +129,34 @@ The builder fills in the real internal blobs:
   WLC with scales `2` and roots `1`, `1`, `5`, MSB-first bits, and 7-bit little-endian ENCINT.
   Entry 4 of `#SYSTEM` announces `full-text` and `KLinks` when applicable.
 
-The `.hhk` parser captures `Name` and `Local`, and topic indices are resolved via `#TOPICS`.
+The `.hhk` parser captures `Name`, `Local`, `Target`, and `ID`, and topic indices are resolved via `#TOPICS`.
 As additional validation, the `$WW*` and `$OBJINST` blobs from the example were compared byte by byte
 with those from the HHC, and the `$FIftiMain` was decoded using the FPC reader semantics.
+
+## ActiveX Controls and Navigation Scripts
+
+The compiler detects and records HTML Help ActiveX commands and navigation scripts:
+
+- **ActiveX controls**: `<OBJECT>` tags with `classid="clsid:adb880a6-d8ff-11cf-9377-00aa003b7a11"`
+  (HHCtrl.ocx) are parsed. Supported commands include `Contents`, `Index`, `KLink`, `Popup`,
+  `Button`, `Button_IT`, `HTML`, and `Close`. All `<PARAM>` attributes (`Command`, `Item1`–`Item5`,
+  `Button`, `Flags`, `Window`, `Text`) are extracted.
+- **Navigation scripts**: JavaScript calls to `window.helpObj` are detected. Supported functions
+  include `navigate`, `addHistory`, `removeHistory`, `popup`, `setInfoType`, `getInfoType`,
+  `getHistoryCount`, `getHistoryItem`, `setLocation`, `getLocation`, `addFavorite`,
+  `removeFavorite`, `getFavoriteCount`, and `getFavoriteItem`.
+- **Advanced `.hhc`/`.hhk` parameters**: The parser now recognizes `Target` (window target),
+  `Merge` (external CHM reference), and `ID` (topic identifier) in addition to `Name` and `Local`.
+
+The compile output reports the number of ActiveX commands and navigation scripts found.
 
 ## Known Limitations
 
 - The IDs in `#URLTBL` are deterministic (FNV-1a), different from those in the HHC; navigation uses the
   table index and is not affected.
 - The `.hhc` / `.hhk` parser recognizes `<UL>`, `<LI>`, and `<OBJECT type="text/sitemap">`
-  with `Name` and `Local` parameters; it is not a complete HTML parser.
-- No support for ActiveX, macros, or special navigation scripts.
+  with `Name`, `Local`, `Target`, `Merge`, and `ID` parameters; it is not a complete HTML parser.
+- ActiveX commands and navigation scripts are detected but not validated against the CHM content;
+  references to external `.hhc`/`.hhk` files via `Merge` are recorded but not resolved.
 
 For binary details, see `doc/chm.md` and `doc/lzx.md`.

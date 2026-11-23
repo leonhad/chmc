@@ -582,6 +582,15 @@ namespace {
             if (paramValue(line, "Local", v)) {
                 current.local = internalName(v);
             }
+            if (paramValue(line, "Target", v)) {
+                current.target = v;
+            }
+            if (paramValue(line, "Merge", v)) {
+                current.merge = v;
+            }
+            if (paramValue(line, "ID", v)) {
+                current.id = v;
+            }
         }
         flush();
         markChildren(toc);
@@ -642,8 +651,225 @@ namespace {
             if (paramValue(line, "Local", v)) {
                 current.local = internalName(v);
             }
+            if (paramValue(line, "Target", v)) {
+                current.target = v;
+            }
+            if (paramValue(line, "ID", v)) {
+                current.id = v;
+            }
         }
         flush();
+        return true;
+    }
+
+    // ---------------------------------------------------------------------------
+    // ActiveX and Navigation Scripts
+    // ---------------------------------------------------------------------------
+    bool parseActiveXCommands(const std::vector<chm::InputFile> &files, std::vector<chm::ActiveXCommand> &commands, std::vector<chm::NavigationScript> &scripts)
+    {
+        // HTML Help ActiveX control classid
+        const std::string hhClassid = "adb880a6-d8ff-11cf-9377-00aa003b7a11";
+
+        for (const auto &[internalName, data] : files) {
+            const std::string ext = lower(fs::path(internalName).extension().string());
+            if (ext != ".htm" && ext != ".html") {
+                continue;
+            }
+
+            const std::string s(reinterpret_cast<const char *>(data.data()), data.size());
+            const std::string sl = lower(s);
+
+            // --- ActiveX Commands (HHCtrl.ocx) ---
+            size_t pos = 0;
+            while ((pos = sl.find("classid=", pos)) != std::string::npos) {
+                size_t p = pos + 8;
+                while (p < s.size() && std::isspace(static_cast<unsigned char>(s[p]))) { ++p; }
+
+                std::string classid;
+                if (p < s.size() && (s[p] == '"' || s[p] == '\'')) {
+                    const char quote = s[p++];
+                    if (const size_t end = s.find(quote, p); end != std::string::npos) {
+                        classid = lower(s.substr(p, end - p));
+                    }
+                }
+
+                // Check if this is the HTML Help ActiveX control
+                if (classid.find(hhClassid) == std::string::npos) {
+                    pos += 8;
+                    continue;
+                }
+
+                // Find the closing </object> tag
+                size_t objStart = 0;
+                size_t searchBack = pos;
+                while (searchBack > 0) {
+                    --searchBack;
+                    if (s[searchBack] == '<') {
+                        size_t tagEnd = s.find('>', searchBack);
+                        if (tagEnd != std::string::npos) {
+                            std::string tag = lower(s.substr(searchBack, tagEnd - searchBack + 1));
+                            if (tag.find("object") != std::string::npos) {
+                                objStart = searchBack;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                size_t objEnd = sl.find("</object>", pos);
+                if (objEnd == std::string::npos) {
+                    pos += 8;
+                    continue;
+                }
+
+                std::string objContent = s.substr(objStart, objEnd - objStart + 9);
+                std::string objContentLower = lower(objContent);
+
+                chm::ActiveXCommand cmd;
+
+                // Extract OBJECT id
+                {
+                    size_t idPos = objContentLower.find("id=", objStart);
+                    if (idPos != std::string::npos && idPos < objEnd) {
+                        size_t ip = idPos + 3;
+                        while (ip < objContent.size() && std::isspace(static_cast<unsigned char>(objContent[ip]))) { ++ip; }
+                        if (ip < objContent.size() && (objContent[ip] == '"' || objContent[ip] == '\'')) {
+                            const char quote = objContent[ip++];
+                            if (const size_t end = objContent.find(quote, ip); end != std::string::npos) {
+                                cmd.id = objContent.substr(ip, end - ip);
+                            }
+                        }
+                    }
+                }
+
+                // Extract PARAM name/value pairs
+                size_t paramPos = 0;
+                while ((paramPos = objContentLower.find("<param", paramPos)) != std::string::npos && paramPos < objEnd) {
+                    size_t paramEnd = objContent.find('>', paramPos);
+                    if (paramEnd == std::string::npos) break;
+
+                    std::string paramTag = objContent.substr(paramPos, paramEnd - paramPos + 1);
+                    std::string paramTagLower = lower(paramTag);
+
+                    std::string paramName, paramValue;
+                    if (findAttr(paramTag, "name", paramName)) {
+                        paramName = lower(paramName);
+                        findAttr(paramTag.substr(paramTag.find("value", paramName.size())), "value", paramValue);
+                    } else {
+                        paramPos += 6;
+                        continue;
+                    }
+
+                    if (paramName == "command") {
+                        cmd.command = paramValue;
+                    } else if (paramName == "item1") {
+                        cmd.item1 = paramValue;
+                    } else if (paramName == "item2") {
+                        cmd.item2 = paramValue;
+                    } else if (paramName == "item3") {
+                        cmd.item3 = paramValue;
+                    } else if (paramName == "item4") {
+                        cmd.item4 = paramValue;
+                    } else if (paramName == "item5") {
+                        cmd.item5 = paramValue;
+                    } else if (paramName == "button") {
+                        cmd.button = paramValue;
+                    } else if (paramName == "flags") {
+                        cmd.flags = paramValue;
+                    } else if (paramName == "window") {
+                        cmd.window = paramValue;
+                    } else if (paramName == "text") {
+                        cmd.text = paramValue;
+                    }
+
+                    paramPos += 6;
+                }
+
+                if (!cmd.command.empty()) {
+                    cmd.sourceFile = internalName;
+                    commands.push_back(std::move(cmd));
+                }
+
+                pos = objEnd + 9;
+            }
+
+            // --- Navigation Scripts (window.helpObj API) ---
+            pos = 0;
+            while ((pos = sl.find("helpobj", pos)) != std::string::npos) {
+                // Find the function call context
+                size_t funcStart = pos;
+                while (funcStart > 0 && (std::isalpha(static_cast<unsigned char>(s[funcStart - 1])) || s[funcStart - 1] == '_')) {
+                    --funcStart;
+                }
+
+                // Look for the dot and function name after helpObj
+                size_t dotPos = sl.find('.', pos + 7);
+                if (dotPos == std::string::npos || dotPos > pos + 20) {
+                    pos += 7;
+                    continue;
+                }
+
+                size_t funcNameStart = dotPos + 1;
+                while (funcNameStart < s.size() && std::isspace(static_cast<unsigned char>(s[funcNameStart]))) { ++funcNameStart; }
+
+                std::string funcName;
+                while (funcNameStart < s.size() && (std::isalpha(static_cast<unsigned char>(s[funcNameStart])) || s[funcNameStart] == '_')) {
+                    funcName += s[funcNameStart++];
+                }
+
+                if (funcName.empty()) {
+                    pos += 7;
+                    continue;
+                }
+
+                // Check if this is a known helpObj function
+                const char *knownFuncs[] = {"navigate", "addhistory", "removehistory", "popup", "setinfotype",
+                                             "getinfotype", "gethistorycount", "gethistoryitem",
+                                             "setlocation", "getlocation", "addfavorite", "removefavorite",
+                                             "getfavoritecount", "getfavoriteitem"};
+                bool isKnown = false;
+                for (const char *kf : knownFuncs) {
+                    if (lower(funcName) == kf) {
+                        isKnown = true;
+                        break;
+                    }
+                }
+
+                if (!isKnown) {
+                    pos += 7;
+                    continue;
+                }
+
+                // Extract arguments (find the opening paren and matching closing paren)
+                size_t parenStart = s.find('(', funcNameStart);
+                if (parenStart != std::string::npos) {
+                    int depth = 1;
+                    size_t parenEnd = parenStart + 1;
+                    while (parenEnd < s.size() && depth > 0) {
+                        if (s[parenEnd] == '(') ++depth;
+                        else if (s[parenEnd] == ')') --depth;
+                        ++parenEnd;
+                    }
+                    if (depth == 0) {
+                        std::string args = s.substr(parenStart + 1, parenEnd - parenStart - 2);
+                        // Trim whitespace
+                        size_t aStart = 0, aEnd = args.size();
+                        while (aStart < aEnd && std::isspace(static_cast<unsigned char>(args[aStart]))) ++aStart;
+                        while (aEnd > aStart && std::isspace(static_cast<unsigned char>(args[aEnd - 1]))) --aEnd;
+                        args = args.substr(aStart, aEnd - aStart);
+
+                        chm::NavigationScript script;
+                        script.function = funcName;
+                        script.arguments = args;
+                        script.sourceFile = internalName;
+                        scripts.push_back(std::move(script));
+                    }
+                }
+
+                pos += 7;
+            }
+        }
+
         return true;
     }
 
@@ -839,6 +1065,9 @@ int main(int argc, char **argv)
         }
     }
 
+    // Parse ActiveX commands and navigation scripts from HTML files.
+    parseActiveXCommands(files, opt.activeXCommands, opt.navigationScripts);
+
     if (!chm::build(outPath.string(), files, opt, error)) {
         std::cerr << "Error generating CHM: " << error << "\n";
         return 1;
@@ -931,7 +1160,9 @@ int main(int argc, char **argv)
               << files.size() << "\tFiles\n"
               << opt.toc.size() << "\tTable of contents\n"
               << opt.keywords.size() << "\tKeywords\n"
-              << opt.windows.size() << "\tWindows\n";
+              << opt.windows.size() << "\tWindows\n"
+              << opt.activeXCommands.size() << "\tActiveX commands\n"
+              << opt.navigationScripts.size() << "\tNavigation scripts\n";
 
     return 0;
 }

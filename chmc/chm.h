@@ -14,6 +14,9 @@ namespace chm {
     struct TocEntry {
         std::string name; // text displayed in the table of contents
         std::string local; // internal name ("/topic.htm"), empty for node without destination
+        std::string target; // Target window name (e.g., "_main", "_blank")
+        std::string merge; // Merge attribute for external CHM references (e.g., "other.chm::/toc.hhc")
+        std::string id; // Topic identifier for context-sensitive help
         int depth = 0; // depth in .hhc (0 = root)
         bool hasChildren = false;
     };
@@ -22,7 +25,34 @@ namespace chm {
     struct KeywordEntry {
         std::string name;
         std::string local;
+        std::string target; // Target window name
+        std::string id; // Topic identifier for context-sensitive help
         int depth = 0;
+    };
+
+    // HTML Help ActiveX control command (HHCtrl.ocx).
+    // Represents <OBJECT> tags with classid adb880a6-d8ff-11cf-9377-00aa003b7a11.
+    struct ActiveXCommand {
+        std::string command; // e.g., "Contents", "Index", "KLink", "Popup", "Button", "Button_IT", "HTML", "Close"
+        std::string item1; // First item parameter (e.g., .hhc/.hhk path, keyword, URL)
+        std::string item2; // Second item parameter (e.g., window name, flags)
+        std::string item3; // Third item parameter (e.g., button text)
+        std::string item4; // Fourth item parameter (e.g., popup title)
+        std::string item5; // Fifth item parameter (e.g., popup flags)
+        std::string button; // Button text for Button/Button_IT commands
+        std::string flags; // Flags for Contents/Index commands
+        std::string window; // Target window name
+        std::string text; // Display text for KLink/Button commands
+        std::string id; // OBJECT id attribute
+        std::string sourceFile; // HTML file containing this ActiveX command
+    };
+
+    // Navigation script reference (window.helpObj API).
+    // Represents JavaScript calls to the HTML Help viewer.
+    struct NavigationScript {
+        std::string function; // e.g., "navigate", "addHistory", "removeHistory", "popup", "setInfoType"
+        std::string arguments; // Comma-separated arguments
+        std::string sourceFile; // File containing the script
     };
 
     // Viewer window definition ([WINDOWS] section of .hhp).
@@ -80,6 +110,8 @@ namespace chm {
         std::vector<TocEntry> toc;
         std::vector<KeywordEntry> keywords;
         std::vector<WindowDef> windows;
+        std::vector<ActiveXCommand> activeXCommands;
+        std::vector<NavigationScript> navigationScripts;
     };
 
     // Builds an ITSF v3 CHM with section 0 (uncompressed) and section 1 (LZX).
