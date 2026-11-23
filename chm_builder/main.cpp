@@ -496,8 +496,11 @@ bool parseHhk(const fs::path& path, std::vector<chm::KeywordEntry>& keywords,
         if (endTag == std::string::npos) break;
         endTag += 1;
         chm::KeywordEntry item;
-        size_t paramEnd = low.find("</li", endTag);
-        if (paramEnd == std::string::npos) paramEnd = text.size();
+        size_t paramEnd = text.size();
+        for (const char* tag : {"</li", "<li", "</ul", "</ol", "</body", "</html"}) {
+            size_t p = low.find(tag, endTag);
+            if (p != std::string::npos && p < paramEnd) paramEnd = p;
+        }
 
         size_t pp = endTag;
         while (pp < paramEnd) {

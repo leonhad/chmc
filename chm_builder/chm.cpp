@@ -11,6 +11,7 @@
 #include <iostream>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 #include <sstream>
 #include <utility>
 
@@ -777,7 +778,7 @@ Internal buildInternal(const BuildOptions& opt,
                        const std::vector<InputFile>& files) {
     Internal in;
 
-    // --- #STRINGS -----------------------------------------------------------
+        // --- #STRINGS -----------------------------------------------------------
     // Ordem observada em CHMs compilados pelo HHA: "", nome da janela, titulo,
     // sumario, indice, topico inicial, titulos dos topicos (HTML) e titulos
     // dos arquivos de sumario/indice. A fonte fica no codigo 16 de #SYSTEM.
@@ -854,7 +855,7 @@ Internal buildInternal(const BuildOptions& opt,
     (void)dw;
     (void)stAddFile;
 
-    // --- Topicos: HTML do sumario, HTML solto, sumario.hhc e indice.hhk -----
+        // --- Topicos: HTML do sumario, HTML solto, sumario.hhc e indice.hhk -----
     struct Topic {
         std::string local;
         std::string title;
@@ -862,9 +863,22 @@ Internal buildInternal(const BuildOptions& opt,
         bool inToc = false;
         int tocNode = -1;
     };
-    std::vector<Topic> topics;
+std::vector<Topic> topics;
     std::vector<int> tocTopicIndex(opt.toc.size(), -1);
     std::unordered_map<std::string, int> topicByLocal;
+    std::unordered_map<std::string, std::string> titleCache;
+    titleCache.reserve(files.size());
+    for (const InputFile& f : files) {
+        const std::string loc = stripSlash(f.internalName);
+        const std::string lo = lower(loc);
+        if (lo.find(".htm") == std::string::npos) continue;
+        titleCache[normalizeLocal(loc)] = htmlTitle(f.data);
+    }
+    auto pageTitleCached = [&](const std::string& internal, const std::string& fallback) {
+        auto it = titleCache.find(normalizeLocal(internal));
+        if (it != titleCache.end() && !it->second.empty()) return it->second;
+        return fallback;
+    };
     for (size_t i = 0; i < opt.toc.size(); ++i) {
         if (opt.toc[i].local.empty()) continue;
         const std::string loc = stripSlash(opt.toc[i].local);
@@ -879,20 +893,22 @@ Internal buildInternal(const BuildOptions& opt,
         }
         tocTopicIndex[i] = static_cast<int>(topics.size());
         topicByLocal[key] = tocTopicIndex[i];
-        topics.push_back({loc, pageTitle(loc, opt.toc[i].name), 0xFFFFFFFFu,
+        topics.push_back({loc, pageTitleCached(loc, opt.toc[i].name), 0xFFFFFFFFu,
                           true, static_cast<int>(i)});
     }
+std::unordered_set<std::string> knownLocals;
+    knownLocals.reserve(topics.size() * 2 + 1);
+    for (const Topic& t : topics) knownLocals.insert(normalizeLocal(t.local));
     for (const InputFile& f : files) {
         const std::string loc = stripSlash(f.internalName);
         const std::string lo = lower(loc);
         if (lo.find(".htm") == std::string::npos) continue;
-        bool found = false;
-        for (const Topic& t : topics) {
-            if (lower(t.local) == lo) { found = true; break; }
-        }
-        if (!found) topics.push_back({loc, pageTitle(loc, loc), 0xFFFFFFFFu,
-                                     false, -1});
+        const std::string key = normalizeLocal(loc);
+        if (knownLocals.find(key) != knownLocals.end()) continue;
+        knownLocals.insert(key);
+        topics.push_back({loc, pageTitleCached(loc, loc), 0xFFFFFFFFu, false, -1});
     }
+
     if (topics.empty()) {
         topics.push_back({stripSlash(opt.defaultTopic), opt.title,
                           0xFFFFFFFFu, false, -1});
@@ -902,7 +918,7 @@ Internal buildInternal(const BuildOptions& opt,
 
     for (Topic& t : topics) t.titleOff = st.add(t.title);
 
-    // --- #URLSTR: prefixo de 8 zeros antes de cada URL ----------------------
+        // --- #URLSTR: prefixo de 8 zeros antes de cada URL ----------------------
     in.urlstr.push_back(0x42);
     std::vector<uint32_t> urlSlotOff(topics.size(), 0);
     for (size_t i = 0; i < topics.size(); ++i) {
@@ -946,7 +962,7 @@ Internal buildInternal(const BuildOptions& opt,
         }
     }
 
-    // --- #TOCIDX ------------------------------------------------------------
+        // --- #TOCIDX ------------------------------------------------------------
     const size_t n = opt.toc.size();
     std::vector<int> parent(n, -1), firstChild(n, -1), nextSibling(n, -1);
     std::vector<int> lastAtDepth(64, -1);
@@ -1016,7 +1032,7 @@ Internal buildInternal(const BuildOptions& opt,
     }
     if (n == 0) in.tocidx.resize(4096 + 16, 0);
 
-    // --- #TOPICS ------------------------------------------------------------
+        // --- #TOPICS ------------------------------------------------------------
     for (size_t i = 0; i < topics.size(); ++i) {
         const Topic& t = topics[i];
         uint32_t tocOff = t.tocNode >= 0 ? nodeOffset[t.tocNode] : 0;
@@ -1029,7 +1045,7 @@ Internal buildInternal(const BuildOptions& opt,
     }
     if (topics.empty()) zeros(in.topics, 16);
 
-    // --- #IDXHDR (mesmos bytes da entrada 13 de #SYSTEM) -------------------
+        // --- #IDXHDR (mesmos bytes da entrada 13 de #SYSTEM) -------------------
     const uint32_t idxChecksum = makeId("IDXHDR") ^ opt.unixTime;
     in.idxhdr.assign(4096, 0);
     put32(in.idxhdr, 0, 0x4D532354u); // "T#SM" em little-endian
@@ -1047,7 +1063,7 @@ Internal buildInternal(const BuildOptions& opt,
     put32(in.idxhdr, 0x44, 1);
     put32(in.idxhdr, 0x48, 0);
 
-    // --- #WINDOWS -----------------------------------------------------------
+        // --- #WINDOWS -----------------------------------------------------------
     // Formato HH_WINTYPE (196 bytes por entrada, CHM 1.1+). Strings são offsets
     // em #STRINGS. Embedded windows avançadas não são suportadas.
     const uint32_t winEntrySize = 196;
@@ -1093,13 +1109,20 @@ Internal buildInternal(const BuildOptions& opt,
         WSTR(0xA8, w.urlJump2);                  // pszUrlJump2
     }
 
-    // --- Indice binario de palavras-chave ($WW*) ----------------------------
+        // --- Indice binario de palavras-chave ($WW*) ----------------------------
     std::map<std::string, uint32_t> topicByLocalBin;
     for (size_t i = 0; i < htmlTopicCount; ++i) {
         topicByLocalBin[normalizeLocal(topics[i].local)] = static_cast<uint32_t>(i);
     }
     std::vector<KeywordIndexEntry> keywordEntries;
+    std::unordered_set<std::string> seenKeyword;
     for (const KeywordEntry& k : opt.keywords) {
+        std::string key = k.name;
+        size_t a = 0, b = key.size();
+        while (a < b && std::isspace(static_cast<unsigned char>(key[a]))) ++a;
+        while (b > a && std::isspace(static_cast<unsigned char>(key[b - 1]))) --b;
+        key = lower(key.substr(a, b - a));
+        if (key.empty() || !seenKeyword.insert(key).second) continue;
         KeywordIndexEntry e;
         e.word = k.name;
         e.local = k.local;
@@ -1116,7 +1139,7 @@ Internal buildInternal(const BuildOptions& opt,
     in.aLinksProperty.assign(4, 0);
     in.objinst = buildObjInst(opt.lcid);
 
-    // --- Indice de texto integral ($FIftiMain) ------------------------------
+        // --- Indice de texto integral ($FIftiMain) ------------------------------
     std::vector<FtiWord> ftiWords;
     std::map<std::string, size_t> ftiIndex;
     FtiStats stats;
@@ -1155,7 +1178,7 @@ Internal buildInternal(const BuildOptions& opt,
     });
     in.fti = buildFtiMain(ftiWords, stats, opt.lcid);
 
-    // --- #SYSTEM ------------------------------------------------------------
+        // --- #SYSTEM ------------------------------------------------------------
     w32(in.system, 3);
     addSystemU32(in.system, 10, opt.unixTime);
     addSystemString(in.system, 9, "HHA Version 4.74.8702");
@@ -1185,7 +1208,7 @@ Internal buildInternal(const BuildOptions& opt,
         addSystemString(in.system, 16, opt.font);
     }
 
-    in.strings = st.bytes();
+        in.strings = st.bytes();
     return in;
 }
 

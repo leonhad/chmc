@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <array>
 #include <cstring>
+#include <functional>
+#include <queue>
 
 namespace lzx {
 namespace {
@@ -100,6 +102,93 @@ std::vector<uint8_t> fixedLengths(int n) {
     return len;
 }
 
+std::vector<uint8_t> computeLengths(const std::vector<uint32_t>& freq, int maxBits = 16) {
+    const size_t n = freq.size();
+    std::vector<uint8_t> len(n, 0);
+    std::vector<int> syms;
+    syms.reserve(n);
+    for (size_t i = 0; i < n; ++i) if (freq[i] > 0) syms.push_back(static_cast<int>(i));
+    if (syms.empty()) return len;
+    if (syms.size() == 1) { len[syms[0]] = 1; return len; }
+
+    struct Node { uint64_t w; int sym; Node* l; Node* r; };
+    struct Cmp { bool operator()(Node* a, Node* b) const { return a->w > b->w; } };
+    std::priority_queue<Node*, std::vector<Node*>, Cmp> pq;
+    std::vector<Node*> all;
+    all.reserve(2*n);
+    for (int s : syms) { Node* nd = new Node{freq[s], s, nullptr, nullptr}; all.push_back(nd); pq.push(nd); }
+    while (pq.size() > 1) {
+        Node* a = pq.top(); pq.pop();
+        Node* b = pq.top(); pq.pop();
+        Node* nd = new Node{a->w + b->w, -1, a, b};
+        all.push_back(nd); pq.push(nd);
+    }
+    std::function<void(Node*,int)> walk = [&](Node* nd, int d) {
+        if (!nd) return;
+        if (nd->sym >= 0) { len[nd->sym] = static_cast<uint8_t>(d); return; }
+        walk(nd->l, d+1); walk(nd->r, d+1);
+    };
+    walk(pq.top(), 0);
+    for (Node* nd : all) delete nd;
+
+    // Limit to maxBits by redistributing Kraft sum.
+    int over = 0;
+    for (size_t i = 0; i < n; ++i) if (len[i] > maxBits) over++;
+    if (over > 0) {
+        for (size_t i = 0; i < n; ++i) if (len[i] > maxBits) len[i] = static_cast<uint8_t>(maxBits);
+    }
+    // Fix Kraft sum to 1<<16 (2^maxBits).
+    auto kraft = [&](void)->int {
+        int k=0; for (uint8_t l:len) if(l) k += 1 << (maxBits - l); return k;
+    };
+    int k = kraft();
+    const int target = 1 << maxBits;
+    // If oversubscribed, increase lengths of least-frequent symbols.
+    while (k > target) {
+        int best = -1;
+        for (int s : syms) {
+            if (len[s] < maxBits && (best < 0 || freq[s] < freq[best] || (freq[s]==freq[best] && len[s] < len[best]))) best=s;
+        }
+        if (best < 0) break;
+        len[best]++;
+        k = kraft();
+    }
+    // If undersubscribed, decrease lengths of most-frequent/shortest feasible symbols.
+    while (k < target) {
+        int best = -1;
+        for (int s : syms) {
+            if (len[s] > 1) {
+                int nk = k + (1 << (maxBits - len[s])); // decreasing len by 1 adds 2^(maxBits-l) to kraft? wait: delta = 2^(maxBits-(l-1)) - 2^(maxBits-l)=2^(maxBits-l)
+                if (nk <= target) {
+                    if (best < 0 || freq[s] > freq[best] || (freq[s]==freq[best] && len[s]>len[best])) best=s;
+                }
+            }
+        }
+        if (best < 0) {
+            // allow overshoot fix not possible; break
+            break;
+        }
+        k += (1 << (maxBits - len[best]));
+        len[best]--;
+    }
+    // Final exact fix
+    k = kraft();
+    while (k != target) {
+        bool changed=false;
+        if (k < target) {
+            for (int s : syms) {
+                if (len[s] > 1) { int d=1<<(maxBits-len[s]); if (k+d<=target){k+=d; len[s]--; changed=true; break;} }
+            }
+        } else {
+            for (int s : syms) {
+                if (len[s] < maxBits) { int d=1<<(maxBits-len[s]-1); if (k-d>=0){k-=d; len[s]++; changed=true; break;} }
+            }
+        }
+        if(!changed) break;
+    }
+    return len;
+}
+
 Huffman buildHuffman(const std::vector<uint8_t>& len) {
     Huffman h;
     h.length = len;
@@ -192,33 +281,47 @@ std::vector<Token> tokenizeFrame(const uint8_t* data, size_t len,
         head[h] = static_cast<int>(p);
     };
 
+    auto findBest = [&](size_t p, int& outLen, uint32_t& outOff) {
+        outLen = 0; outOff = 0;
+        if (p + 2 >= len) return;
+        const uint32_t h = hash3(data + p);
+        int cand = head[h];
+        const size_t frameEnd = ((p / kFrameSize) + 1) * kFrameSize;
+        const int maxLen = static_cast<int>(std::min<size_t>(
+            kMaxMatch, std::min<size_t>(len - p, frameEnd - p)));
+        int examined = 0;
+        while (cand >= 0 && examined++ < 256) {
+            const uint32_t dist = static_cast<uint32_t>(p - static_cast<size_t>(cand));
+            if (dist > static_cast<uint32_t>(kWindowSize) - 3u) break;
+            if (outLen >= maxLen) break;
+            if (data[cand + outLen] == data[p + outLen] || outLen == 0) {
+                int l = 0;
+                while (l < maxLen && data[cand + l] == data[p + l]) ++l;
+                if (l > outLen) { outLen = l; outOff = dist; if (l == maxLen) break; }
+            }
+            cand = prev[cand];
+        }
+    };
+
     size_t pos = 0;
     while (pos < len) {
         int bestLen = 0;
         uint32_t bestOffset = 0;
+        findBest(pos, bestLen, bestOffset);
 
-        if (pos + 2 < len) {
-            const uint32_t h = hash3(data + pos);
-            int cand = head[h];
-            // Um bloco nao pode atravessar o limite de frame de 32 KiB.
-            const size_t frameEnd = ((pos / kFrameSize) + 1) * kFrameSize;
-            const int maxLen = static_cast<int>(std::min<size_t>(
-                kMaxMatch, std::min<size_t>(len - pos, frameEnd - pos)));
-            int examined = 0;
-            while (cand >= 0 && examined++ < 128) {
-                const uint32_t dist = static_cast<uint32_t>(pos - static_cast<size_t>(cand));
-                // 32 slots cobrem offsets de 1 a 65533; o ultimo par de offsets
-                // da janela exigiria um slot extra e nao e emitido.
-                if (dist > static_cast<uint32_t>(kWindowSize) - 3u) break;
-                if (cand + bestLen < static_cast<int>(pos) && bestLen > 0) {
-                    // candidato nao pode melhorar
-                    cand = prev[cand];
-                    continue;
-                }
-                int l = 0;
-                while (l < maxLen && data[cand + l] == data[pos + l]) ++l;
-                if (l > bestLen) { bestLen = l; bestOffset = dist; }
-                cand = prev[cand];
+        bool posInserted = false;
+        // Lazy matching: if next position gives a longer match, emit literal.
+        if (bestLen >= 3 && bestLen < kMaxMatch && pos + 1 < len) {
+            int nextLen = 0; uint32_t nextOff = 0;
+            insert(pos); posInserted = true;
+            findBest(pos + 1, nextLen, nextOff);
+            if (nextLen > bestLen + 1) {
+                Token t;
+                t.isMatch = false;
+                t.mainSymbol = data[pos];
+                tokens.push_back(t);
+                ++pos;
+                continue;
             }
         }
 
@@ -243,6 +346,7 @@ std::vector<Token> tokenizeFrame(const uint8_t* data, size_t len,
             tokens.push_back(t);
             lz.update(slot, bestOffset);
 
+            if (!posInserted) insert(pos);
             for (int k = 1; k < bestLen; ++k) insert(pos + k);
             pos += bestLen;
         } else {
@@ -250,7 +354,7 @@ std::vector<Token> tokenizeFrame(const uint8_t* data, size_t len,
             t.isMatch = false;
             t.mainSymbol = data[pos];
             tokens.push_back(t);
-            insert(pos);
+            if (!posInserted) insert(pos);
             ++pos;
         }
     }
@@ -328,12 +432,18 @@ void encodeInterval(const std::vector<uint8_t>& data, BitWriter& bw,
     LzState lz;
     const std::vector<Token> tokens = tokenizeFrame(data.data(), data.size(), base, lz);
 
-    // Arvores completas e fixas: com 32 slots a arvore principal tem 512
-    // simbolos de 9 bits; a arvore de comprimentos mantem 7 de 7 + 242 de 8.
+    // Arvores Huffman dinamicas por intervalo, baseadas nas frequencias reais.
+    std::vector<uint32_t> mainFreq(kMainTreeSymbols, 0);
+    std::vector<uint32_t> lenFreq(kNumSecondaryLengths, 0);
+    for (const Token& t : tokens) {
+        if (t.mainSymbol < mainFreq.size()) mainFreq[t.mainSymbol]++;
+        if (t.lengthSymbol >= 0 && t.lengthSymbol < static_cast<int>(lenFreq.size())) lenFreq[t.lengthSymbol]++;
+    }
     const std::vector<uint8_t> mainLen = fixedLengths(kMainTreeSymbols);
-    const std::vector<uint8_t> lengthLen = fixedLengths(kNumSecondaryLengths);
-    const Huffman mainHuff = buildHuffman(mainLen);
-    const Huffman lengthHuff = buildHuffman(lengthLen);
+    std::vector<uint8_t> lengthLen = computeLengths(lenFreq, 16);
+    Huffman mainHuff = buildHuffman(mainLen);
+    Huffman lengthHuff = buildHuffman(lengthLen);
+    if (!lengthHuff.complete) { lengthLen = fixedLengths(kNumSecondaryLengths); lengthHuff = buildHuffman(lengthLen); }
 
     // Cabecalho E8 desabilitado. Ele e lido apenas no inicio do intervalo
     // de reset (o decodificador relê o estado de Huffman a cada 2 frames).
