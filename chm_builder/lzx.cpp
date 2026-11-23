@@ -35,13 +35,15 @@ int extraBitsForSlot(const int slot) {
 
 // position_base[slot]: menor "formatted offset" representado pelo slot.
 // formatted offset = offset + 2 (ou 0/1/2 para R0/R1/R2).
-std::vector<uint32_t> makePositionBase(const int slots) {
-    std::vector<uint32_t> base(slots + 1, 0);
-    for (int i = 1; i <= slots; ++i) {
+// Calculado uma vez como tabela estática para evitar realocação a cada intervalo.
+static const std::array<uint32_t, kNumPositionSlots + 1> makePositionBase() {
+    std::array<uint32_t, kNumPositionSlots + 1> base{};
+    for (int i = 1; i <= kNumPositionSlots; ++i) {
         base[i] = base[i - 1] + (1u << extraBitsForSlot(i - 1));
     }
     return base;
 }
+static const std::array<uint32_t, kNumPositionSlots + 1> kPositionBase = makePositionBase();
 
 // ---------------------------------------------------------------------------
 // Escritor de bits: MSB primeiro, words little-endian de 16 bits
@@ -64,6 +66,8 @@ public:
             flushWord();
         }
     }
+
+    void reserve(size_t n) { bytes_.reserve(n); }
 
     [[nodiscard]] size_t size() const { return bytes_.size(); }
     [[nodiscard]] const std::vector<uint8_t>& bytes() const { return bytes_; }
@@ -248,11 +252,9 @@ struct LzState {
         if (offset == R1) { formatted = 1; return 1; }
         if (offset == R2) { formatted = 2; return 2; }
         formatted = offset + 2;
-        return std::upper_bound(kBase.begin() + 3, kBase.end(),
-                                formatted) - kBase.begin() - 1;
+        return std::upper_bound(kPositionBase.begin() + 3, kPositionBase.end(),
+                                formatted) - kPositionBase.begin() - 1;
     }
-
-    std::vector<uint32_t> kBase = makePositionBase(kNumPositionSlots);
 };
 
 uint32_t hash3(const uint8_t* p) {
@@ -264,7 +266,7 @@ uint32_t hash3(const uint8_t* p) {
 // Tokeniza um intervalo de reset (2 frames, 64 KiB). O historico LZ e
 // reiniciado apenas no início de cada intervalo.
 std::vector<Token> tokenizeFrame(const uint8_t* data, size_t len,
-                                 const std::vector<uint32_t>& base,
+                                 const std::array<uint32_t, kNumPositionSlots + 1>& base,
                                  LzState& lz) {
     std::vector<Token> tokens;
     tokens.reserve(len / 3);
@@ -447,9 +449,8 @@ struct TreeWriter {
 // ---------------------------------------------------------------------------
 void encodeInterval(const std::vector<uint8_t>& data, BitWriter& bw,
                     uint64_t& midOffset, uint64_t& endOffset) {
-    const std::vector<uint32_t> base = makePositionBase(kNumPositionSlots);
     LzState lz;
-    const std::vector<Token> tokens = tokenizeFrame(data.data(), data.size(), base, lz);
+    const std::vector<Token> tokens = tokenizeFrame(data.data(), data.size(), kPositionBase, lz);
 
     // Árvores Huffman dinâmicas por intervalo, baseadas nas frequências reais.
     std::vector<uint32_t> mainFreq(kMainTreeSymbols, 0);
@@ -522,14 +523,17 @@ Result compress(const std::vector<uint8_t>& input) {
     out.paddedSize = static_cast<uint64_t>(intervals) * intervalSize;
 
     BitWriter bw;
+    bw.reserve(input.size()); // reserva aproximada: comprimido é menor que original
     // Tabela de reset do CHM: um offset comprimido por frame de 32 KiB.
     // O decoder usa essa tabela para localizar frames; o codec reinicia o
     // estado a cada 2 frames (intervalo de 64 KiB).
     out.resetOffsets.push_back(0);
+    out.resetOffsets.reserve(2 + intervals * 2);
+    std::vector<uint8_t> interval(intervalSize, 0);
     for (size_t i = 0; i < intervals; ++i) {
         const size_t begin = i * intervalSize;
         const size_t end = std::min(begin + intervalSize, input.size());
-        std::vector<uint8_t> interval(intervalSize, 0);
+        std::fill(interval.begin(), interval.end(), 0);
         if (end > begin) {
             std::memcpy(interval.data(), input.data() + begin, end - begin);
         }
@@ -540,7 +544,7 @@ Result compress(const std::vector<uint8_t>& input) {
         out.resetOffsets.push_back(intervalEnd);
     }
     if (intervals == 0) {
-        const std::vector<uint8_t> interval(intervalSize, 0);
+        std::fill(interval.begin(), interval.end(), 0);
         uint64_t midOffset = 0;
         uint64_t intervalEnd = 0;
         encodeInterval(interval, bw, midOffset, intervalEnd);

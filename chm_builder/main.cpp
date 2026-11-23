@@ -26,9 +26,11 @@ namespace {
         return s.substr(a, b - a);
     }
 
-    std::string lower(std::string s) {
-        for (char &c: s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        return s;
+    std::string lower(const std::string &s) {
+        std::string r;
+        r.reserve(s.size());
+        for (char c: s) r.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+        return r;
     }
 
     std::string decodeEntities(std::string s) {
@@ -77,10 +79,13 @@ namespace {
     }
 
     bool readBytes(const fs::path &p, std::vector<uint8_t> &out) {
-        std::ifstream f(p, std::ios::binary);
+        std::ifstream f(p, std::ios::binary | std::ios::ate);
         if (!f) return false;
-        out.assign(std::istreambuf_iterator(f), std::istreambuf_iterator<char>());
-        return true;
+        const auto size = f.tellg();
+        f.seekg(0, std::ios::beg);
+        out.resize(static_cast<size_t>(size));
+        f.read(reinterpret_cast<char *>(out.data()), static_cast<std::streamsize>(size));
+        return static_cast<bool>(f);
     }
 
     bool readText(const fs::path &p, std::string &out) {

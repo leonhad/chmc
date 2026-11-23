@@ -70,8 +70,9 @@ namespace chm {
         void zeros(std::vector<uint8_t> &v, const size_t n) { v.insert(v.end(), n, 0); }
 
         std::string lower(const std::string &s) {
-            std::string r = s;
-            for (char &c: r) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            std::string r;
+            r.reserve(s.size());
+            for (char c: s) r.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
             return r;
         }
 
@@ -139,6 +140,8 @@ namespace chm {
         class StringTable {
         public:
             StringTable() { data_.push_back(0); }
+
+            void reserve(size_t n) { data_.reserve(data_.size() + n + 1); }
 
             uint32_t add(const std::string &s) {
                 const size_t inBlock = data_.size() % 4096;
@@ -211,10 +214,17 @@ namespace chm {
         // ---------------------------------------------------------------------------
         // Blobs internos de índice: $OBJINST, $WW* e $FIftiMain
         // ---------------------------------------------------------------------------
-        std::string normalizeLocal(std::string s) {
-            for (char &c: s) if (c == '\\') c = '/';
-            while (!s.empty() && s[0] == '/') s.erase(0, 1);
-            return lower(s);
+        std::string normalizeLocal(const std::string &s) {
+            size_t start = 0;
+            while (start < s.size() && s[start] == '/') ++start;
+            std::string r;
+            r.reserve(s.size() - start);
+            for (size_t i = start; i < s.size(); ++i) {
+                char c = s[i];
+                if (c == '\\') c = '/';
+                r.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+            }
+            return r;
         }
 
         // $OBJINST é uma lista de dois objetos COM usados pelo motor de índice.
@@ -838,6 +848,9 @@ namespace chm {
             };
 
             StringTable st;
+            size_t totalStringSize = 0;
+            for (const InputFile &f: files) totalStringSize += f.internalName.size() + f.data.size() / 100;
+            st.reserve(totalStringSize);
             auto stAddFile = [&](const std::string &s) -> uint32_t {
                 if (s.empty()) return 0;
                 return st.add(stripSlash(s));
@@ -904,8 +917,10 @@ namespace chm {
                 int tocNode = -1;
             };
             std::vector<Topic> topics;
+            topics.reserve(opt.toc.size() + files.size());
             std::vector tocTopicIndex(opt.toc.size(), -1);
             std::unordered_map<std::string, int> topicByLocal;
+            topicByLocal.reserve(opt.toc.size() + files.size());
             std::unordered_map<std::string, std::string> titleCache;
             titleCache.reserve(files.size());
             for (const InputFile &f: files) {
@@ -937,7 +952,7 @@ namespace chm {
                 });
             }
             std::unordered_set<std::string> knownLocals;
-            knownLocals.reserve(topics.size() * 2 + 1);
+            knownLocals.reserve(topics.size() + files.size());
             for (const Topic &t: topics) knownLocals.insert(normalizeLocal(t.local));
             for (const InputFile &f: files) {
                 const std::string loc = stripSlash(f.internalName);
@@ -961,6 +976,7 @@ namespace chm {
             for (Topic &t: topics) t.titleOff = st.add(t.title);
 
             // --- #URLSTR: prefixo de 8 zeros antes de cada URL ----------------------
+            in.urlstr.reserve(topics.size() * 20 + 1);
             in.urlstr.push_back(0x42);
             std::vector<uint32_t> urlSlotOff(topics.size(), 0);
             for (size_t i = 0; i < topics.size(); ++i) {
@@ -1041,8 +1057,9 @@ namespace chm {
             put32(in.tocidx, 8, n);
             put32(in.tocidx, 0xC, dwordListOff);
 
+            in.tocidx.resize(linkOff + n * 16, 0);
+
             for (size_t i = 0; i < n; ++i) {
-                in.tocidx.resize(nodeOffset[i] + nodeSize[i], 0);
                 uint32_t flags = 0;
                 if (!opt.toc[i].local.empty()) flags |= 0x8;
                 if (opt.toc[i].hasChildren) flags |= 0x4;
@@ -1083,6 +1100,7 @@ namespace chm {
             if (n == 0) in.tocidx.resize(4096 + 16, 0);
 
             // --- #TOPICS ------------------------------------------------------------
+            in.topics.reserve(topics.size() * 16);
             for (size_t i = 0; i < topics.size(); ++i) {
                 const Topic &t = topics[i];
                 uint32_t tocOff = t.tocNode >= 0 ? nodeOffset[t.tocNode] : 0;
@@ -1165,7 +1183,9 @@ namespace chm {
                 topicByLocalBin[normalizeLocal(topics[i].local)] = i;
             }
             std::vector<KeywordIndexEntry> keywordEntries;
+            keywordEntries.reserve(opt.keywords.size());
             std::unordered_set<std::string> seenKeyword;
+            seenKeyword.reserve(opt.keywords.size());
             for (const KeywordEntry &k: opt.keywords) {
                 std::string key = k.name;
                 size_t a = 0, b = key.size();
@@ -1191,6 +1211,7 @@ namespace chm {
 
             // --- Índice de texto integral ($FIftiMain) ------------------------------
             std::vector<FtiWord> ftiWords;
+            ftiWords.reserve(htmlTopicCount * 100);
             std::map<std::string, size_t> ftiIndex;
             FtiStats stats;
             for (size_t i = 0; i < htmlTopicCount; ++i) {
@@ -1229,6 +1250,7 @@ namespace chm {
             in.fti = buildFtiMain(ftiWords, stats, opt.lcid);
 
             // --- #SYSTEM ------------------------------------------------------------
+            in.system.reserve(256);
             w32(in.system, 3);
             addSystemU32(in.system, 10, opt.unixTime);
             addSystemString(in.system, 9, "HHA Version 4.74.8702");
