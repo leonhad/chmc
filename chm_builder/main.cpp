@@ -326,33 +326,45 @@ bool findAttr(const std::string& line, const std::string& name, std::string& val
     return false;
 }
 
-bool paramValue(const std::string& line, const std::string& paramName, std::string& value) {
-    // Uma linha do .hhc pode conter varios <param>: é preciso localizar o
-    // parametro pedido em vez de usar sempre o primeiro "name=".
-    const std::string wanted = lower(trim(paramName));
-    size_t pos = 0;
-    const std::string key = "name";
-    while ((pos = lower(line).find(key, pos)) != std::string::npos) {
-        size_t p = pos + key.size();
-        while (p < line.size() && std::isspace(static_cast<unsigned char>(line[p]))) ++p;
-        if (p < line.size() && line[p] == '=') {
-            ++p;
-            while (p < line.size() && std::isspace(static_cast<unsigned char>(line[p]))) ++p;
-            if (p < line.size() && (line[p] == '"' || line[p] == '\'')) {
-                const char quote = line[p++];
-                const size_t end = line.find(quote, p);
-                if (end != std::string::npos) {
-                    const std::string name = decodeEntities(line.substr(p, end - p));
-                    if (lower(trim(name)) == wanted) {
-                        const size_t rest = end + 1;
-                        return findAttr(line.substr(rest), "value", value);
-                    }
-                    pos = end + 1;
-                    continue;
-                }
-            }
+static size_t findCi(const std::string& hay, const char* needle, size_t pos = 0) {
+    const size_t nlen = std::strlen(needle);
+    if (nlen == 0) return pos;
+    for (size_t i = pos; i + nlen <= hay.size(); ++i) {
+        bool ok = true;
+        for (size_t j = 0; j < nlen; ++j) {
+            if (std::tolower(static_cast<unsigned char>(hay[i + j])) !=
+                std::tolower(static_cast<unsigned char>(needle[j]))) { ok = false; break; }
         }
-        ++pos;
+        if (ok) return i;
+    }
+    return std::string::npos;
+}
+
+static bool ieq(const std::string& a, const char* b) {
+    size_t i=0; while(i<a.size() && std::isspace(static_cast<unsigned char>(a[i]))) ++i;
+    size_t j=a.size(); while(j>i && std::isspace(static_cast<unsigned char>(a[j-1]))) --j;
+    const size_t bl=std::strlen(b);
+    if (j-i!=bl) return false;
+    for(size_t k=0;k<bl;++k) if(std::tolower(static_cast<unsigned char>(a[i+k]))!=std::tolower(static_cast<unsigned char>(b[k]))) return false;
+    return true;
+}
+
+bool paramValue(const std::string& line, const std::string& paramName, std::string& value) {
+    const char* wanted = paramName.c_str();
+    size_t pos = 0;
+    while ((pos = findCi(line, "name", pos)) != std::string::npos) {
+        size_t p = pos + 4;
+        while (p < line.size() && std::isspace(static_cast<unsigned char>(line[p]))) ++p;
+        if (p >= line.size() || line[p] != '=') { ++pos; continue; }
+        ++p;
+        while (p < line.size() && std::isspace(static_cast<unsigned char>(line[p]))) ++p;
+        if (p >= line.size() || (line[p] != '"' && line[p] != '\'')) { ++pos; continue; }
+        const char quote = line[p++];
+        const size_t end = line.find(quote, p);
+        if (end == std::string::npos) { ++pos; continue; }
+        const std::string name = decodeEntities(line.substr(p, end - p));
+        if (ieq(name, wanted)) return findAttr(line.substr(end + 1), "value", value);
+        pos = end + 1;
     }
     return false;
 }
@@ -423,12 +435,14 @@ bool parseHhk(const fs::path& path, std::vector<chm::KeywordEntry>& keywords,
         error = "nao foi possivel ler: " + path.string();
         return false;
     }
+    std::string low = text;
+    for (char& c : low) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
 
     std::vector<chm::KeywordEntry> stack;
     size_t pos = 0;
     while (pos < text.size()) {
-        const size_t open = lower(text.substr(pos)).find("<li");
-        const size_t close = lower(text.substr(pos)).find("</li");
+        const size_t open = low.find("<li", pos);
+        const size_t close = low.find("</li", pos);
         const bool hasOpen = open != std::string::npos;
         const bool hasClose = close != std::string::npos;
 
@@ -441,26 +455,24 @@ bool parseHhk(const fs::path& path, std::vector<chm::KeywordEntry>& keywords,
                     keywords.push_back(std::move(e));
                 }
             }
-            pos += close + 4;
+            pos = close + 4;
             continue;
         }
         if (!hasOpen) break;
 
-        const size_t at = pos + open;
-        size_t end = lower(text.substr(at)).find('>');
-        if (end == std::string::npos) break;
-        end += at + 1;
+        const size_t at = open;
+        size_t endTag = low.find('>', at);
+        if (endTag == std::string::npos) break;
+        endTag += 1;
         chm::KeywordEntry item;
-        // Os <param> do OBJECT costumam vir depois do <li>, na mesma linha.
-        size_t paramEnd = lower(text.substr(end)).find("</li");
+        size_t paramEnd = low.find("</li", endTag);
         if (paramEnd == std::string::npos) paramEnd = text.size();
-        else paramEnd += end;
-        const std::string block = text.substr(end, paramEnd - end);
+        const std::string block = text.substr(endTag, paramEnd - endTag);
         std::string v;
         if (paramValue(block, "Name", v)) item.name = trim(v);
         if (paramValue(block, "Local", v)) item.local = v;
         stack.push_back(std::move(item));
-        pos = end;
+        pos = endTag;
     }
     while (!stack.empty()) {
         chm::KeywordEntry e = stack.back();
@@ -592,11 +604,11 @@ int main(int argc, char** argv) {
     if (!indexRel.empty()) addFile(indexRel, true);
     addFile(defaultRel, true);
 
-    if (!parseHhc(base / fs::path(contentsRel), opt.toc, error)) {
+if (!parseHhc(base / fs::path(contentsRel), opt.toc, error)) {
         std::cerr << "Erro: " << error << "\n";
         return 1;
     }
-    if (!parseHhk(base / fs::path(indexRel), opt.keywords, error)) {
+if (!parseHhk(base / fs::path(indexRel), opt.keywords, error)) {
         std::cerr << "Erro: " << error << "\n";
         return 1;
     }
@@ -609,7 +621,7 @@ int main(int argc, char** argv) {
             if (isAsset(ref)) pendingAssets.push_back(ref);
         }
     }
-    for (const std::string& ref : pendingAssets) addFile(ref, false);
+for (const std::string& ref : pendingAssets) addFile(ref, false);
 
     // Garante que arquivos referenciados por [WINDOWS] sejam considerados.
     for (const chm::WindowDef& w : opt.windows) {
