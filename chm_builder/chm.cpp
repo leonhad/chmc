@@ -3,9 +3,7 @@
 #include "objinst_table.h"
 
 #include <algorithm>
-#include <chrono>
 #include <array>
-#include <cctype>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -84,7 +82,7 @@ namespace chm {
         // ENCINT: grupos de 7 bits, do mais significativo para o menos significativo.
         int encIntLen(const uint64_t x) {
             int n = 1;
-            while (x >= (1ULL << (7 * n))) ++n;
+            while (x >= 1ULL << (7 * n)) ++n;
             return n;
         }
 
@@ -329,8 +327,7 @@ namespace chm {
             for (size_t i = 0; i < order.size(); ++i) order[i] = i;
             std::sort(order.begin(), order.end(), [&](const size_t a, const size_t b) {
                 const std::string la = lower(entries[a].word);
-                const std::string lb = lower(entries[b].word);
-                if (la != lb) return la < lb;
+                if (const std::string lb = lower(entries[b].word); la != lb) return la < lb;
                 return entries[a].word < entries[b].word;
             });
 
@@ -344,7 +341,7 @@ namespace chm {
             size_t used = 12;
             int count = 0;
             uint32_t mod13 = 0;
-            auto flushLeaf = [&]() {
+            auto flushLeaf = [&] {
                 put16(block.data(), 0, static_cast<uint16_t>(2048 - used));
                 put16(block.data(), 2, static_cast<uint16_t>(count));
                 put32(block.data(), 4,
@@ -370,7 +367,7 @@ namespace chm {
                 used += enc.size();
                 ++count;
                 lastListing = enc;
-                lastListing.back() = 0; // mod13 nao participa do cabecalho de indice
+                lastListing.back() = 0; // mod13 não participa do cabecalho de indice
 
                 // Cada registro de dados e constante; o segundo DWORD parece ser o
                 // número total de nós de tópico do CHM.
@@ -397,12 +394,13 @@ namespace chm {
 
             // Níveis de índice, quando há mais de um bloco de listagem.
             std::vector<std::vector<uint8_t> > allBlocks;
-            allBlocks.push_back(std::vector(out.btree.begin(), out.btree.begin() + leaves.size() * 2048));
+            allBlocks.emplace_back(out.btree.begin(), out.btree.begin() + static_cast<size_t>(leaves.size() * 2048));
             struct IndexItem {
                 std::vector<uint8_t> entry;
                 uint32_t block = 0;
             };
             std::vector<IndexItem> level;
+            level.reserve(leaves.size());
             for (size_t i = 0; i < leaves.size(); ++i) {
                 level.push_back({
                     indexEntryBytes(leaves[i].lastListing, i),
@@ -417,7 +415,7 @@ namespace chm {
                 size_t usedIdx = 8;
                 int countIdx = 0;
                 std::vector<uint8_t> lastIndexEntry;
-                auto flushIndex = [&]() {
+                auto flushIndex = [&] {
                     put16(ib.data(), 0, static_cast<uint16_t>(2048 - usedIdx));
                     put16(ib.data(), 2, static_cast<uint16_t>(countIdx));
                     put32(ib.data(), 4, level.front().block);
@@ -475,7 +473,7 @@ namespace chm {
             if (s.size() < 3 || s[0] != '&' || s.back() != ';') return " ";
             const std::string name = s.substr(1, s.size() - 2);
             if (!name.empty() && name[0] == '#') {
-                unsigned long cp = 0;
+                unsigned long cp;
                 try {
                     if (name.size() > 2 && (name[1] == 'x' || name[1] == 'X'))
                         cp = std::stoul(name.substr(2), nullptr, 16);
@@ -526,7 +524,7 @@ namespace chm {
             std::string word;
             bool inWord = false;
             bool numberWord = false;
-            auto flush = [&]() {
+            auto flush = [&] {
                 if (word.empty()) return;
                 std::string clean;
                 for (const char c: word) if (c != '\'' && c != ',') clean.push_back(c);
@@ -537,7 +535,7 @@ namespace chm {
             };
             for (size_t i = 0; i < s.size(); ++i) {
                 const auto c = static_cast<unsigned char>(s[i]);
-                const unsigned char next = (i + 1 < s.size()) ? static_cast<unsigned char>(s[i + 1]) : 0;
+                const unsigned char next = i + 1 < s.size() ? static_cast<unsigned char>(s[i + 1]) : 0;
                 bool ends = !isIndexWordByte(c);
                 if (ends && numberWord && c == ',') ends = false;
                 if (ends && numberWord && c == '.' && next >= '0' && next <= '9') ends = false;
@@ -546,7 +544,7 @@ namespace chm {
                     flush();
                 } else if (!inWord) {
                     inWord = true;
-                    numberWord = (c >= '0' && c <= '9');
+                    numberWord = c >= '0' && c <= '9';
                     word.push_back(static_cast<char>(c));
                 } else {
                     word.push_back(static_cast<char>(c));
@@ -563,7 +561,7 @@ namespace chm {
             while (i < s.size()) {
                 if (s[i] != '<') {
                     const size_t j = s.find('<', i);
-                    const size_t end = (j == std::string::npos) ? s.size() : j;
+                    const size_t end = j == std::string::npos ? s.size() : j;
                     if ((inTitle || inBody) && !inScript && !inStyle) {
                         tokenizeIndexedText(s.substr(i, end - i), inTitle && !inBody, position, out);
                     }
@@ -645,10 +643,10 @@ namespace chm {
             const int prefix = std::max(0, needed - root);
             int rootBits = std::max(needed - 1, root);
             if (rootBits < 0) rootBits = 0;
-            const uint32_t mask = rootBits >= 32 ? 0xFFFFFFFFu : ((1u << rootBits) - 1u);
-            uint32_t bits = ((~mask) << 1) | (value & mask);
+            const uint32_t mask = rootBits >= 32 ? 0xFFFFFFFFu : (1u << rootBits) - 1u;
+            uint32_t bits = (~mask << 1) | (value & mask);
             const int total = prefix + 1 + rootBits;
-            if (total >= 32) bits = ((~mask) << 1) | (value & mask);
+            if (total >= 32) bits = (~mask << 1) | (value & mask);
             else bits &= (1u << total) - 1u;
             bw.write(bits, total);
         }
@@ -690,7 +688,7 @@ namespace chm {
             uint32_t lastLeafAt = 0;
             uint32_t lastLeafFree = 0;
 
-            auto flushLeaf = [&]() {
+            auto flushLeaf = [&] {
                 put32(block.data(), 0, 0);
                 lastLeafFree = kNodeSize - used;
                 put16(block.data(), 6, static_cast<uint16_t>(lastLeafFree));
@@ -913,13 +911,11 @@ namespace chm {
             titleCache.reserve(files.size());
             for (const InputFile &f: files) {
                 const std::string loc = stripSlash(f.internalName);
-                const std::string lo = lower(loc);
-                if (lo.find(".htm") == std::string::npos) continue;
+                if (const std::string lo = lower(loc); lo.find(".htm") == std::string::npos) continue;
                 titleCache[normalizeLocal(loc)] = htmlTitle(f.data);
             }
             auto pageTitleCached = [&](const std::string &internal, const std::string &fallback) {
-                const auto it = titleCache.find(normalizeLocal(internal));
-                if (it != titleCache.end() && !it->second.empty()) return it->second;
+                if (const auto it = titleCache.find(normalizeLocal(internal)); it != titleCache.end() && !it->second.empty()) return it->second;
                 return fallback;
             };
             for (size_t i = 0; i < opt.toc.size(); ++i) {
@@ -993,21 +989,21 @@ namespace chm {
             std::sort(urlEntries.begin(), urlEntries.end(),
                       [](const UrlEntry &a, const UrlEntry &b) { return a.id < b.id; });
             std::vector<uint32_t> topicUrlTblOff(topics.size(), 0);
-            const size_t perBlock = 341;
+            constexpr size_t perBlock = 341;
             for (size_t i = 0; i < urlEntries.size(); i += perBlock) {
                 const size_t n = std::min(perBlock, urlEntries.size() - i);
                 const size_t base = in.urltbl.size();
                 const bool full = n == perBlock;
-                const size_t blockSize = full ? 4096u : (n * 12u);
+                const size_t blockSize = full ? 4096u : n * 12u;
                 in.urltbl.resize(base + blockSize, 0);
                 for (size_t j = 0; j < n; ++j) {
-                    const UrlEntry &e = urlEntries[i + j];
+                    const auto &[id, topic, urlOff] = urlEntries[i + j];
                     const size_t off = base + j * 12;
-                    put32(in.urltbl, off + 0, e.id);
-                    put32(in.urltbl, off + 4, e.topic);
-                    put32(in.urltbl, off + 8, e.urlOff);
-                    if (e.topic < topicUrlTblOff.size())
-                        topicUrlTblOff[e.topic] = static_cast<uint32_t>(off);
+                    put32(in.urltbl, off + 0, id);
+                    put32(in.urltbl, off + 4, topic);
+                    put32(in.urltbl, off + 8, urlOff);
+                    if (topic < topicUrlTblOff.size())
+                        topicUrlTblOff[topic] = static_cast<uint32_t>(off);
                 }
                 if (full) {
                     // Observed in HHC: full 4KB blocks store 4096 here.
@@ -1182,7 +1178,7 @@ namespace chm {
                 e.word = k.name;
                 e.local = k.local;
                 const auto it = topicByLocalBin.find(normalizeLocal(k.local));
-                e.topicIndex = (it == topicByLocalBin.end()) ? 0 : it->second;
+                e.topicIndex = it == topicByLocalBin.end() ? 0 : it->second;
                 keywordEntries.push_back(std::move(e));
             }
             const BlobSet kw = buildKeywordLinks(keywordEntries,
@@ -1318,14 +1314,14 @@ namespace chm {
                 }
                 nameLen |= (uint64_t) (*p & 0x7Fu) << shift;
                 ++p;
-                size_t entryLen = static_cast<size_t>(p - (c.data.data() + inChunk));
-                entryLen += static_cast<size_t>(nameLen);
+
                 p += nameLen;
                 for (int k = 0; k < 3; ++k) {
                     while ((*p & 0x80u) != 0) ++p;
                     ++p;
                 }
-                entryLen = static_cast<size_t>(p - (c.data.data() + inChunk));
+
+                auto entryLen = static_cast<size_t>(p - (c.data.data() + inChunk));
                 inChunk += entryLen;
             }
             // O HHC grava os quickrefs em ordem inversa e relativos ao início da
@@ -1360,11 +1356,11 @@ namespace chm {
                 }
                 nameLen |= (uint64_t) (*p & 0x7Fu) << shift;
                 ++p;
-                size_t entryLen = static_cast<size_t>(p - (c.data.data() + inChunk));
                 p += nameLen;
                 while ((*p & 0x80u) != 0) ++p;
                 ++p;
-                entryLen = static_cast<size_t>(p - (c.data.data() + inChunk));
+
+                const auto entryLen = static_cast<size_t>(p - (c.data.data() + inChunk));
                 inChunk += entryLen;
             }
             int qpos = 4094;
@@ -1405,7 +1401,7 @@ namespace chm {
             Chunk cur;
             for (const DirEntry *e: sorted) {
                 const std::vector<uint8_t> enc = encodeDirEntry(*e);
-                const int quickAfter = ((cur.count + 1) % 5 == 0)
+                const int quickAfter = (cur.count + 1) % 5 == 0
                                            ? (cur.count + 1) / 5
                                            : cur.count / 5;
                 const size_t limit = 4094u - static_cast<size_t>(2 * quickAfter) - 20u;
@@ -1455,11 +1451,10 @@ namespace chm {
                     raw(enc, name.data(), name.size());
                     encInt(enc, i);
 
-                    const int quickAfter = ((pmgi.count + 1) % 5 == 0)
+                    const int quickAfter = (pmgi.count + 1) % 5 == 0
                                                ? (pmgi.count + 1) / 5
                                                : pmgi.count / 5;
-                    const size_t limit = 4094u - static_cast<size_t>(2 * quickAfter) - 8u;
-                    if (pmgi.dataLen + enc.size() > limit) {
+                    if (const size_t limit = 4094u - static_cast<size_t>(2 * quickAfter) - 8u; pmgi.dataLen + enc.size() > limit) {
                         error = "muitos chunks PMGL para o indice PMGI implementado";
                         return false;
                     }
@@ -1541,7 +1536,6 @@ namespace chm {
             std::string name;
             uint32_t section = 0;
             std::vector<uint8_t> data;
-            bool hasData = true;
             uint64_t offset = 0;
             uint64_t length = 0;
         };
@@ -1559,7 +1553,7 @@ namespace chm {
         std::vector<Pending> compressed;
         auto addCompressed = [&](const std::string &name,
                                  const std::vector<uint8_t> &data) {
-            compressed.push_back({name, 1, data, true, 0, 0});
+            compressed.push_back({name, 1, data, 0, 0});
         };
         for (const InputFile &f: files) addCompressed(f.internalName, f.data);
         addCompressed("/#IDXHDR", in.idxhdr);
@@ -1590,7 +1584,7 @@ namespace chm {
         std::vector<Pending> rawFiles;
         auto addRaw = [&](const std::string &name,
                           const std::vector<uint8_t> &data) {
-            rawFiles.push_back({name, 0, data, true, 0, 0});
+            rawFiles.push_back({name, 0, data, 0, 0});
         };
         // O HHC coloca NameList no início da seção 0, seguido de #SYSTEM.
         addRaw("::DataSpace/NameList", makeNameList());
@@ -1615,24 +1609,26 @@ namespace chm {
 
         // Content: ponteiro para o fluxo LZX; seus dados ficam depois da seção 0.
         rawFiles.push_back({
-            "::DataSpace/Storage/MSCompressed/Content", 0, {}, false,
+            "::DataSpace/Storage/MSCompressed/Content", 0, {},
             static_cast<uint64_t>(sec0.size()), lz.stream.size()
         });
 
         // Diretorios (entries de tamanho zero).
-        rawFiles.push_back({"/", 0, {}, false, 0, 0});
-        rawFiles.push_back({"/$WWAssociativeLinks/", 0, {}, false, 0, 0});
-        rawFiles.push_back({"/$WWKeywordLinks/", 0, {}, false, 0, 0});
-        rawFiles.push_back({kTransformDir, 0, {}, false, 0, 0});
+        rawFiles.push_back({"/", 0, {}, 0, 0});
+        rawFiles.push_back({"/$WWAssociativeLinks/", 0, {}, 0, 0});
+        rawFiles.push_back({"/$WWKeywordLinks/", 0, {}, 0, 0});
+        rawFiles.push_back({kTransformDir, 0, {}, 0, 0});
 
         std::vector<DirEntry> entries;
         // O HHC registra arquivos vazios com offset zero.
+        entries.reserve(rawFiles.size());
         for (const Pending &p: rawFiles) {
             entries.push_back({
                 p.name, p.section,
                 p.length == 0 ? 0 : p.offset, p.length
             });
         }
+
         for (const Pending &p: compressed) {
             entries.push_back({
                 p.name, p.section,
