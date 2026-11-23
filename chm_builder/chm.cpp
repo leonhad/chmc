@@ -7,7 +7,9 @@
 #include <cctype>
 #include <cstring>
 #include <fstream>
+#include <iostream>
 #include <map>
+#include <unordered_map>
 #include <sstream>
 #include <utility>
 
@@ -157,6 +159,7 @@ struct Internal {
     std::vector<uint8_t> fti, objinst;
     std::vector<uint8_t> aLinksProperty, kLinksBTree, kLinksData;
     std::vector<uint8_t> kLinksMap, kLinksProperty;
+    bool synthWindow = false;
 };
 
 // Extrai o conteudo da tag <title> de um arquivo HTML/HHC/HHK.
@@ -802,7 +805,9 @@ Internal buildInternal(const BuildOptions& opt,
     // janela padrão compatível com hh.exe. Embedded windows avançadas não são
     // suportadas.
     std::vector<WindowDef> windows = opt.windows;
-    if (windows.empty()) {
+    const bool synthWindow = windows.empty();
+    in.synthWindow = synthWindow;
+    if (synthWindow) {
         WindowDef w;
         w.name = opt.defaultWindow.empty() ? "main" : opt.defaultWindow;
         w.caption = opt.title;
@@ -858,10 +863,21 @@ Internal buildInternal(const BuildOptions& opt,
     };
     std::vector<Topic> topics;
     std::vector<int> tocTopicIndex(opt.toc.size(), -1);
+    std::unordered_map<std::string, int> topicByLocal;
     for (size_t i = 0; i < opt.toc.size(); ++i) {
         if (opt.toc[i].local.empty()) continue;
         const std::string loc = stripSlash(opt.toc[i].local);
+        const std::string key = normalizeLocal(loc);
+        auto it = topicByLocal.find(key);
+        if (it != topicByLocal.end()) {
+            tocTopicIndex[i] = it->second;
+            Topic& t = topics[it->second];
+            t.inToc = true;
+            if (t.tocNode < 0) t.tocNode = static_cast<int>(i);
+            continue;
+        }
         tocTopicIndex[i] = static_cast<int>(topics.size());
+        topicByLocal[key] = tocTopicIndex[i];
         topics.push_back({loc, pageTitle(loc, opt.toc[i].name), 0xFFFFFFFFu,
                           true, static_cast<int>(i)});
     }
@@ -881,12 +897,7 @@ Internal buildInternal(const BuildOptions& opt,
                           0xFFFFFFFFu, false, -1});
     }
     const size_t htmlTopicCount = topics.size();
-    topics.push_back({opt.contentsFile,
-                      pageTitle(opt.contentsFile, opt.contentsTitle),
-                      0xFFFFFFFFu, false, -1});
-    topics.push_back({opt.indexFile,
-                      pageTitle(opt.indexFile, opt.indexTitle),
-                      0xFFFFFFFFu, false, -1});
+    (void)htmlTopicCount;
 
     for (Topic& t : topics) t.titleOff = st.add(t.title);
 
@@ -899,22 +910,40 @@ Internal buildInternal(const BuildOptions& opt,
         cstr(in.urlstr, topics[i].local);
     }
 
-    // --- #URLTBL: entradas curtas, sem blocos de 4096 bytes -----------------
-    const uint32_t id7 = 0x62A83769u;
-    auto urlEntry = [&](uint32_t id, uint32_t topicIndex, uint32_t urlOff) {
-        w32(in.urltbl, id);
-        w32(in.urltbl, topicIndex);
-        w32(in.urltbl, urlOff);
-    };
-    urlEntry(makeId("contents"), 0, urlSlotOff[0]);
-    urlEntry(id7, static_cast<uint32_t>(htmlTopicCount + 1),
-             urlSlotOff[htmlTopicCount + 1]);
-    for (size_t i = 1; i < htmlTopicCount; ++i) {
-        urlEntry(makeId(topics[i].local), static_cast<uint32_t>(i),
-                 urlSlotOff[i]);
+    // --- #URLTBL: blocos de 4096 bytes, 341 entradas por bloco --------------
+    // Observado em CHMs HHC: uma entrada por tópico HTML; sem entradas para
+    // .hhc/.hhk. A ordenação por ID facilita a busca.
+    struct UrlEntry { uint32_t id; uint32_t topic; uint32_t urlOff; };
+    std::vector<UrlEntry> urlEntries;
+    urlEntries.reserve(topics.size());
+    for (size_t i = 0; i < topics.size(); ++i) {
+        urlEntries.push_back({makeId(topics[i].local), static_cast<uint32_t>(i),
+                              urlSlotOff[i]});
     }
-    urlEntry(makeId("index"), static_cast<uint32_t>(htmlTopicCount),
-             urlSlotOff[htmlTopicCount]);
+    std::sort(urlEntries.begin(), urlEntries.end(),
+              [](const UrlEntry& a, const UrlEntry& b) { return a.id < b.id; });
+    std::vector<uint32_t> topicUrlTblOff(topics.size(), 0);
+    const size_t perBlock = 341;
+    for (size_t i = 0; i < urlEntries.size(); i += perBlock) {
+        const size_t n = std::min(perBlock, urlEntries.size() - i);
+        const size_t base = in.urltbl.size();
+        const bool full = n == perBlock;
+        const size_t blockSize = full ? 4096u : (n * 12u);
+        in.urltbl.resize(base + blockSize, 0);
+        for (size_t j = 0; j < n; ++j) {
+            const UrlEntry& e = urlEntries[i + j];
+            const size_t off = base + j * 12;
+            put32(in.urltbl, off + 0, e.id);
+            put32(in.urltbl, off + 4, e.topic);
+            put32(in.urltbl, off + 8, e.urlOff);
+            if (e.topic < topicUrlTblOff.size())
+                topicUrlTblOff[e.topic] = static_cast<uint32_t>(off);
+        }
+        if (full) {
+            // Observed in HHC: full 4KB blocks store 4096 here.
+            put32(in.urltbl, base + 4092, 4096u);
+        }
+    }
 
     // --- #TOCIDX ------------------------------------------------------------
     const size_t n = opt.toc.size();
@@ -990,11 +1019,7 @@ Internal buildInternal(const BuildOptions& opt,
     for (size_t i = 0; i < topics.size(); ++i) {
         const Topic& t = topics[i];
         uint32_t tocOff = t.tocNode >= 0 ? nodeOffset[t.tocNode] : 0;
-        uint32_t urlTblOff;
-        if (i == 0) urlTblOff = 0;
-        else if (i < htmlTopicCount) urlTblOff = static_cast<uint32_t>((i + 1) * 12);
-        else if (i == htmlTopicCount) urlTblOff = static_cast<uint32_t>((htmlTopicCount + 1) * 12);
-        else urlTblOff = 12;
+        uint32_t urlTblOff = i < topicUrlTblOff.size() ? topicUrlTblOff[i] : 0;
         w32(in.topics, tocOff);
         w32(in.topics, t.titleOff);
         w32(in.topics, urlTblOff);
@@ -1068,17 +1093,17 @@ Internal buildInternal(const BuildOptions& opt,
     }
 
     // --- Indice binario de palavras-chave ($WW*) ----------------------------
-    std::map<std::string, uint32_t> topicByLocal;
+    std::map<std::string, uint32_t> topicByLocalBin;
     for (size_t i = 0; i < htmlTopicCount; ++i) {
-        topicByLocal[normalizeLocal(topics[i].local)] = static_cast<uint32_t>(i);
+        topicByLocalBin[normalizeLocal(topics[i].local)] = static_cast<uint32_t>(i);
     }
     std::vector<KeywordIndexEntry> keywordEntries;
     for (const KeywordEntry& k : opt.keywords) {
         KeywordIndexEntry e;
         e.word = k.name;
         e.local = k.local;
-        const auto it = topicByLocal.find(normalizeLocal(k.local));
-        e.topicIndex = (it == topicByLocal.end()) ? 0 : it->second;
+        const auto it = topicByLocalBin.find(normalizeLocal(k.local));
+        e.topicIndex = (it == topicByLocalBin.end()) ? 0 : it->second;
         keywordEntries.push_back(std::move(e));
     }
     const BlobSet kw = buildKeywordLinks(keywordEntries,
@@ -1136,7 +1161,7 @@ Internal buildInternal(const BuildOptions& opt,
     {
         std::vector<uint8_t> info(36, 0);
         put32(info, 0, opt.lcid);
-        put32(info, 4, 0);                              // DBCS
+        put32(info, 4, 0);                              // DBCS / fDBCS
         put32(info, 8, in.fti.empty() ? 0 : 1);          // full-text search
         put32(info, 0xC, keywordEntries.empty() ? 0 : 1); // KLinks
         put32(info, 0x10, 0);                           // ALinks
@@ -1145,15 +1170,19 @@ Internal buildInternal(const BuildOptions& opt,
         put32(info, 0x20, 0);
         addSystemEntry(in.system, 4, info.data(), info.size());
     }
+    if (!opt.contentsFile.empty()) addSystemString(in.system, 0, opt.contentsFile);
+    if (!opt.indexFile.empty()) addSystemString(in.system, 1, opt.indexFile);
     addSystemString(in.system, 2, stripSlash(opt.defaultTopic));
     addSystemString(in.system, 3, opt.title);
-    addSystemString(in.system, 16, opt.font);
     addSystemString(in.system, 6, lower(opt.compiledName));
-    addSystemString(in.system, 5, opt.defaultWindow);
     addSystemU32(in.system, 7, 0x62A83769u); // ID do indice binario
     addSystemU32(in.system, 12, 0);
     addSystemEntry(in.system, 13, in.idxhdr.data(), in.idxhdr.size());
     addSystemU32(in.system, 15, 0);
+    if (!synthWindow) {
+        addSystemString(in.system, 5, opt.defaultWindow);
+        addSystemString(in.system, 16, opt.font);
+    }
 
     in.strings = st.bytes();
     return in;
@@ -1223,8 +1252,9 @@ void finishPmgl(Chunk& c, int prev, int next) {
         put16(c.data.data(), static_cast<size_t>(qpos), *it);
     }
     // QuickRefSize cobre toda a area livre apos as entradas, incluindo a
-    // tabela de quickrefs e o WORD final de contagem.
-    put32(c.data.data(), 4, static_cast<uint32_t>(4096 - 20 - inChunk));
+    // tabela de quickrefs e o WORD final de contagem. inChunk e offset
+    // absoluto no chunk (20 + bytes de entradas).
+    put32(c.data.data(), 4, static_cast<uint32_t>(4096 - inChunk));
     put16(c.data.data(), 4094, static_cast<uint16_t>(c.count));
 }
 
@@ -1253,7 +1283,8 @@ void finishPmgi(Chunk& c) {
         qpos -= 2;
         put16(c.data.data(), static_cast<size_t>(qpos), *it);
     }
-    put32(c.data.data(), 4, static_cast<uint32_t>(4096 - 8 - inChunk));
+    // inChunk e offset absoluto no chunk (8 + bytes de entradas).
+    put32(c.data.data(), 4, static_cast<uint32_t>(4096 - inChunk));
     put16(c.data.data(), 4094, static_cast<uint16_t>(c.count));
 }
 
@@ -1286,7 +1317,7 @@ bool buildDirectory(const std::vector<DirEntry>& entries,
         if (cur.dataLen + enc.size() > limit) {
             finishPmgl(cur,
                        dir.pmgl.empty() ? -1 : static_cast<int>(dir.pmgl.size() - 1),
-                       static_cast<int>(dir.pmgl.size()));
+                       static_cast<int>(dir.pmgl.size() + 1));
             dir.pmgl.push_back(cur);
             cur = Chunk();
         }
@@ -1385,12 +1416,9 @@ std::vector<uint8_t> makeControlData() {
 }
 
 std::vector<uint8_t> makeResetTable(const lzx::Result& lz) {
-    // O perfil LZX implementado reinicia a cada 2 frames de 0x8000 bytes.
-    std::vector<uint64_t> entries;
-    const size_t frameCount = lz.resetOffsets.empty() ? 0 : lz.resetOffsets.size() - 1;
-    for (size_t i = 0; i < frameCount; ++i) {
-        entries.push_back(lz.resetOffsets[i]);
-    }
+    // A tabela tem um offset por frame de 32 KiB. O último offset também
+    // aponta para o fim do fluxo, como observado em CHMs reais.
+    std::vector<uint64_t> entries = lz.resetOffsets;
     if (entries.empty()) entries.push_back(0);
 
     std::vector<uint8_t> v;
@@ -1435,7 +1463,7 @@ bool build(const std::string& outPath,
     };
     for (const InputFile& f : files) addCompressed(f.internalName, f.data);
     addCompressed("/#IDXHDR", in.idxhdr);
-    addCompressed("/#WINDOWS", in.windows);
+    if (!in.synthWindow) addCompressed("/#WINDOWS", in.windows);
     addCompressed("/#STRINGS", in.strings);
     addCompressed("/#TOPICS", in.topics);
     addCompressed("/#URLTBL", in.urltbl);

@@ -322,7 +322,8 @@ struct TreeWriter {
 // ---------------------------------------------------------------------------
 // Um frame LZX independente
 // ---------------------------------------------------------------------------
-void encodeInterval(const std::vector<uint8_t>& data, BitWriter& bw, uint64_t& offsetOut) {
+void encodeInterval(const std::vector<uint8_t>& data, BitWriter& bw,
+                    uint64_t& midOffset, uint64_t& endOffset) {
     const std::vector<uint32_t> base = makePositionBase(kNumPositionSlots);
     LzState lz;
     const std::vector<Token> tokens = tokenizeFrame(data.data(), data.size(), base, lz);
@@ -367,10 +368,13 @@ void encodeInterval(const std::vector<uint8_t>& data, BitWriter& bw, uint64_t& o
 
         // O decodificador realinha a entrada em word de 16 bits no fim de
         // cada frame de 32 KiB.
-        if ((emitted % kFrameSize) == 0) bw.align16();
+        if ((emitted % kFrameSize) == 0) {
+            bw.align16();
+            if (emitted == kFrameSize) midOffset = static_cast<uint64_t>(bw.size());
+        }
     }
 
-    offsetOut = static_cast<uint64_t>(bw.size());
+    endOffset = static_cast<uint64_t>(bw.size());
 }
 
 } // namespace
@@ -389,7 +393,9 @@ Result compress(const std::vector<uint8_t>& input, int windowBits) {
     out.paddedSize = static_cast<uint64_t>(intervals) * intervalSize;
 
     BitWriter bw;
-    // Cada entrada da tabela de reset aponta para o INICIO de um intervalo.
+    // Tabela de reset do CHM: um offset comprimido por frame de 32 KiB.
+    // O decoder usa essa tabela para localizar frames; o codec reinicia o
+    // estado a cada 2 frames (intervalo de 64 KiB).
     out.resetOffsets.push_back(0);
     for (size_t i = 0; i < intervals; ++i) {
         const size_t begin = i * intervalSize;
@@ -398,28 +404,27 @@ Result compress(const std::vector<uint8_t>& input, int windowBits) {
         if (end > begin) {
             std::memcpy(interval.data(), input.data() + begin, end - begin);
         }
+        uint64_t midOffset = 0;
         uint64_t intervalEnd = 0;
-        encodeInterval(interval, bw, intervalEnd);
-        if (i + 1 < intervals) out.resetOffsets.push_back(intervalEnd);
+        encodeInterval(interval, bw, midOffset, intervalEnd);
+        out.resetOffsets.push_back(midOffset);
+        out.resetOffsets.push_back(intervalEnd);
     }
     if (intervals == 0) {
-        // Um CHM vazio ainda precisa de um intervalo para o decodificador.
         std::vector<uint8_t> interval(intervalSize, 0);
+        uint64_t midOffset = 0;
         uint64_t intervalEnd = 0;
-        encodeInterval(interval, bw, intervalEnd);
+        encodeInterval(interval, bw, midOffset, intervalEnd);
+        out.resetOffsets.push_back(midOffset);
+        out.resetOffsets.push_back(intervalEnd);
         out.paddedSize = intervalSize;
     }
     bw.align16();
     out.stream = bw.bytes();
 
-    // O decodificador processa sempre um frame extra de 32 KiB com tamanho
-    // zero; ele serve apenas para reler o bit de preprocessing e alinhar o
-    // fluxo. Dois words zeros bastam (um para o cabecalho, outro para o
-    // alinhamento de 16 bits apos consumir o primeiro bit).
+    // Frame extra de 32 KiB com tamanho zero, usado pelo decoder para reler o
+    // bit de preprocessing e terminar o fluxo.
     out.stream.insert(out.stream.end(), 4, 0);
-
-    // O ultimo offset da tabela aponta para o fim do fluxo comprimido.
-    out.resetOffsets.push_back(out.stream.size());
     return out;
 }
 

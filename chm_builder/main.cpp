@@ -104,8 +104,10 @@ uint64_t fileTime() {
 }
 
 uint32_t parseLcid(const std::string& raw, uint32_t fallback) {
-    const std::string s = trim(raw);
+    std::string s = trim(raw);
     if (s.empty()) return fallback;
+    const size_t sp = s.find_first_of(" \t");
+    if (sp != std::string::npos) s = s.substr(0, sp);
     try {
         size_t used = 0;
         unsigned long value;
@@ -482,12 +484,14 @@ bool isAsset(const std::string& name) {
 
 std::vector<std::string> assetReferences(const std::vector<uint8_t>& data) {
     const std::string s(reinterpret_cast<const char*>(data.data()), data.size());
-    const char* keys[] = {"src=", "value=", "url("};
+    const std::string sl = lower(s);
+    const char* keys[] = {"src=", "href=", "value=", "url("};
     std::vector<std::string> result;
     for (const char* key : keys) {
+        const size_t klen = std::strlen(key);
         size_t pos = 0;
-        while ((pos = s.find(key, pos)) != std::string::npos) {
-            size_t p = pos + std::strlen(key);
+        while ((pos = sl.find(key, pos)) != std::string::npos) {
+            size_t p = pos + klen;
             while (p < s.size() && std::isspace(static_cast<unsigned char>(s[p]))) ++p;
             if (p < s.size() && (s[p] == '"' || s[p] == '\'')) {
                 const char quote = s[p++];
@@ -499,7 +503,7 @@ std::vector<std::string> assetReferences(const std::vector<uint8_t>& data) {
                        s[end] != '>' && s[end] != ')') ++end;
                 if (end > p) result.push_back(s.substr(p, end - p));
             }
-            pos += std::strlen(key);
+            pos += klen;
         }
     }
     return result;
