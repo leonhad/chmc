@@ -26,16 +26,22 @@ namespace lzx {
         constexpr int kNumPositionSlots = 32;
         constexpr int kMainTreeSymbols = kNumChars + 8 * kNumPositionSlots; // 496
 
-        int extraBitsForSlot(const int slot) {
-            if (slot < 4) return 0;
-            if (slot >= 36) return 17;
+        int extraBitsForSlot(const int slot)
+        {
+            if (slot < 4) {
+                return 0;
+            }
+            if (slot >= 36) {
+                return 17;
+            }
             return slot / 2 - 1;
         }
 
         // position_base[slot]: smallest "formatted offset" represented by the slot.
         // formatted offset = offset + 2 (or 0/1/2 for R0/R1/R2).
         // Calculated once as a static table to avoid reallocation at each interval.
-        std::array<uint32_t, kNumPositionSlots + 1> makePositionBase() {
+        std::array<uint32_t, kNumPositionSlots + 1> makePositionBase()
+        {
             std::array<uint32_t, kNumPositionSlots + 1> base{};
             for (int i = 1; i <= kNumPositionSlots; ++i) {
                 base[i] = base[i - 1] + (1u << extraBitsForSlot(i - 1));
@@ -50,30 +56,47 @@ namespace lzx {
         // ---------------------------------------------------------------------------
         class BitWriter {
         public:
-            void putBit(const unsigned int bit) {
+            void putBit(const unsigned int bit)
+            {
                 word_ = static_cast<uint16_t>((word_ << 1) | (bit & 1u));
-                if (++bits_ == 16) flushWord();
+                if (++bits_ == 16) {
+                    flushWord();
+                }
             }
 
-            void putBits(const uint32_t value, const int count) {
-                for (int i = count - 1; i >= 0; --i) putBit((value >> i) & 1u);
+            void putBits(const uint32_t value, const int count)
+            {
+                for (int i = count - 1; i >= 0; --i) {
+                    putBit((value >> i) & 1u);
+                }
             }
 
             // The decoder realigns at each frame to a 16-bit boundary.
-            void align16() {
+            void align16()
+            {
                 if (bits_ != 0) {
                     word_ = static_cast<uint16_t>(word_ << (16 - bits_));
                     flushWord();
                 }
             }
 
-            void reserve(size_t n) { bytes_.reserve(n); }
+            void reserve(const size_t n)
+            {
+                bytes_.reserve(n);
+            }
 
-            [[nodiscard]] size_t size() const { return bytes_.size(); }
-            [[nodiscard]] const std::vector<uint8_t> &bytes() const { return bytes_; }
+            [[nodiscard]] size_t size() const
+            {
+                return bytes_.size();
+            }
+            [[nodiscard]] const std::vector<uint8_t> &bytes() const
+            {
+                return bytes_;
+            }
 
         private:
-            void flushWord() {
+            void flushWord()
+            {
                 // LZX reads little-endian words and consumes bits from MSB to LSB.
                 bytes_.push_back(static_cast<uint8_t>(word_));
                 bytes_.push_back(static_cast<uint8_t>(word_ >> 8));
@@ -97,22 +120,34 @@ namespace lzx {
 
         // "Fixed" complete lengths: d = ceil(log2(n)); some symbols receive
         // d-1 bits so that the Kraft sum is exactly 1.
-        std::vector<uint8_t> fixedLengths(const int n) {
+        std::vector<uint8_t> fixedLengths(const int n)
+        {
             int d = 0;
-            while (1 << d < n) ++d;
+            while (1 << d < n) {
+                ++d;
+            }
             std::vector len(n, static_cast<uint8_t>(d));
             const int promote = (1 << d) - n;
-            for (int i = 0; i < promote; ++i) len[i] = static_cast<uint8_t>(d - 1);
+            for (int i = 0; i < promote; ++i) {
+                len[i] = static_cast<uint8_t>(d - 1);
+            }
             return len;
         }
 
-        std::vector<uint8_t> computeLengths(const std::vector<uint32_t> &freq, const int maxBits = 16) {
+        std::vector<uint8_t> computeLengths(const std::vector<uint32_t> &freq, const int maxBits = 16)
+        {
             const size_t n = freq.size();
             std::vector<uint8_t> len(n, 0);
             std::vector<int> syms;
             syms.reserve(n);
-            for (size_t i = 0; i < n; ++i) if (freq[i] > 0) syms.push_back(static_cast<int>(i));
-            if (syms.empty()) return len;
+            for (size_t i = 0; i < n; ++i) {
+                if (freq[i] > 0) {
+                    syms.push_back(static_cast<int>(i));
+                }
+            }
+            if (syms.empty()) {
+                return len;
+            }
             if (syms.size() == 1) {
                 len[syms[0]] = 1;
                 return len;
@@ -125,13 +160,16 @@ namespace lzx {
                 Node *r;
             };
             struct Cmp {
-                bool operator()(const Node *a, const Node *b) const { return a->w > b->w; }
+                bool operator()(const Node *a, const Node *b) const
+                {
+                    return a->w > b->w;
+                }
             };
             std::priority_queue<Node *, std::vector<Node *>, Cmp> pq;
             std::vector<Node *> all;
             all.reserve(2 * n);
             for (const int s: syms) {
-                Node *nd = new Node{freq[s], s, nullptr, nullptr};
+                auto nd = new Node{freq[s], s, nullptr, nullptr};
                 all.push_back(nd);
                 pq.push(nd);
             }
@@ -145,7 +183,9 @@ namespace lzx {
                 pq.push(nd);
             }
             std::function<void(Node *, int)> walk = [&](const Node *nd, const int d) {
-                if (!nd) return;
+                if (!nd) {
+                    return;
+                }
                 if (nd->sym >= 0) {
                     len[nd->sym] = static_cast<uint8_t>(d);
                     return;
@@ -154,18 +194,32 @@ namespace lzx {
                 walk(nd->r, d + 1);
             };
             walk(pq.top(), 0);
-            for (const Node *nd: all) delete nd;
+            for (const Node *nd: all) {
+                delete nd;
+            }
 
             // Limit to maxBits by redistributing Kraft sum.
             int over = 0;
-            for (size_t i = 0; i < n; ++i) if (len[i] > maxBits) over++;
+            for (size_t i = 0; i < n; ++i) {
+                if (len[i] > maxBits) {
+                    over++;
+                }
+            }
             if (over > 0) {
-                for (size_t i = 0; i < n; ++i) if (len[i] > maxBits) len[i] = static_cast<uint8_t>(maxBits);
+                for (size_t i = 0; i < n; ++i) {
+                    if (len[i] > maxBits) {
+                        len[i] = static_cast<uint8_t>(maxBits);
+                    }
+                }
             }
             // Fix Kraft sum to 1<<16 (2^maxBits).
-            auto kraft = [&]()-> int {
+            auto kraft = [&]() -> int {
                 int k = 0;
-                for (const uint8_t l: len) if (l) k += 1 << (maxBits - l);
+                for (const uint8_t l: len) {
+                    if (l) {
+                        k += 1 << (maxBits - l);
+                    }
+                }
                 return k;
             };
             int k = kraft();
@@ -174,24 +228,26 @@ namespace lzx {
             while (k > target) {
                 int best = -1;
                 for (const int s: syms) {
-                    if (len[s] < maxBits && (best < 0 || freq[s] < freq[best] || (
-                                                 freq[s] == freq[best] && len[s] < len[best])))
+                    if (len[s] < maxBits && (best < 0 || freq[s] < freq[best] || (freq[s] == freq[best] && len[s] < len[best]))) {
                         best = s;
+                    }
                 }
-                if (best < 0) break;
+                if (best < 0) {
+                    break;
+                }
                 len[best]++;
                 k = kraft();
             }
-            // If undersubscribed, decrease lengths of most-frequent/shortest feasible symbols.
+            // If undersubscribed, decrease lengths of most-frequent/the shortest feasible symbols.
             while (k < target) {
                 int best = -1;
                 for (const int s: syms) {
                     if (len[s] > 1) {
-                        const int nk = k + (1 << (maxBits - len[s]));
                         // decreasing len by 1 adds 2^(maxBits-l) to kraft? wait: delta = 2^(maxBits-(l-1)) - 2^(maxBits-l)=2^(maxBits-l)
-                        if (nk <= target) {
-                            if (best < 0 || freq[s] > freq[best] || (freq[s] == freq[best] && len[s] > len[best]))
+                        if (const int nk = k + (1 << (maxBits - len[s])); nk <= target) {
+                            if (best < 0 || freq[s] > freq[best] || (freq[s] == freq[best] && len[s] > len[best])) {
                                 best = s;
+                            }
                         }
                     }
                 }
@@ -209,8 +265,7 @@ namespace lzx {
                 if (k < target) {
                     for (const int s: syms) {
                         if (len[s] > 1) {
-                            const int d = 1 << (maxBits - len[s]);
-                            if (k + d <= target) {
+                            if (const int d = 1 << (maxBits - len[s]); k + d <= target) {
                                 k += d;
                                 len[s]--;
                                 changed = true;
@@ -221,8 +276,7 @@ namespace lzx {
                 } else {
                     for (const int s: syms) {
                         if (len[s] < maxBits) {
-                            const int d = 1 << (maxBits - len[s] - 1);
-                            if (k - d >= 0) {
+                            if (const int d = 1 << (maxBits - len[s] - 1); k - d >= 0) {
                                 k -= d;
                                 len[s]++;
                                 changed = true;
@@ -231,18 +285,25 @@ namespace lzx {
                         }
                     }
                 }
-                if (!changed) break;
+                if (!changed) {
+                    break;
+                }
             }
             return len;
         }
 
-        Huffman buildHuffman(const std::vector<uint8_t> &len) {
+        Huffman buildHuffman(const std::vector<uint8_t> &len)
+        {
             Huffman h;
             h.length = len;
             h.code.assign(len.size(), 0);
 
             std::array<int, 17> count{};
-            for (const uint8_t l: len) if (l > 0 && l <= 16) ++count[l];
+            for (const uint8_t l: len) {
+                if (l > 0 && l <= 16) {
+                    ++count[l];
+                }
+            }
 
             uint32_t next = 0;
             std::array<uint32_t, 17> first{};
@@ -252,12 +313,18 @@ namespace lzx {
             }
             for (size_t s = 0; s < len.size(); ++s) {
                 const int l = len[s];
-                if (l == 0) continue;
+                if (l == 0) {
+                    continue;
+                }
                 h.code[s] = first[l]++;
             }
 
             int kraft = 0;
-            for (const uint8_t l: len) if (l > 0) kraft += 1 << (16 - l);
+            for (const uint8_t l: len) {
+                if (l > 0) {
+                    kraft += 1 << (16 - l);
+                }
+            }
             h.complete = kraft == 1 << 16;
             return h;
         }
@@ -278,7 +345,8 @@ namespace lzx {
         struct LzState {
             uint32_t R0 = 1, R1 = 1, R2 = 1;
 
-            void update(const int slot, const uint32_t offset) {
+            void update(const int slot, const uint32_t offset)
+            {
                 if (slot == 0) {
                     // R0 unchanged
                 } else if (slot == 1) {
@@ -294,7 +362,8 @@ namespace lzx {
                 }
             }
 
-            int slotFor(const uint32_t offset, uint32_t &formatted) const {
+            int slotFor(const uint32_t offset, uint32_t &formatted) const
+            {
                 if (offset == R0) {
                     formatted = 0;
                     return 0;
@@ -308,22 +377,19 @@ namespace lzx {
                     return 2;
                 }
                 formatted = offset + 2;
-                return std::upper_bound(kPositionBase.begin() + 3, kPositionBase.end(),
-                                        formatted) - kPositionBase.begin() - 1;
+                return std::upper_bound(kPositionBase.begin() + 3, kPositionBase.end(), formatted) - kPositionBase.begin() - 1;
             }
         };
 
-        uint32_t hash3(const uint8_t *p) {
-            return ((static_cast<uint32_t>(p[0]) << 8) |
-                    (static_cast<uint32_t>(p[1]) << 4) |
-                    static_cast<uint32_t>(p[2])) & 0xFFFFu;
+        uint32_t hash3(const uint8_t *p)
+        {
+            return ((static_cast<uint32_t>(p[0]) << 8) | (static_cast<uint32_t>(p[1]) << 4) | static_cast<uint32_t>(p[2])) & 0xFFFFu;
         }
 
         // Tokenizes a reset interval (2 frames, 64 KiB). The LZ history is
         // reset only at the start of each interval.
-        std::vector<Token> tokenizeFrame(const uint8_t *data, size_t len,
-                                         const std::array<uint32_t, kNumPositionSlots + 1> &base,
-                                         LzState &lz) {
+        std::vector<Token> tokenizeFrame(const uint8_t *data, size_t len, const std::array<uint32_t, kNumPositionSlots + 1> &base, LzState &lz)
+        {
             std::vector<Token> tokens;
             tokens.reserve(len / 3);
 
@@ -333,7 +399,9 @@ namespace lzx {
             std::vector prev(len, -1);
 
             auto insert = [&](const size_t p) {
-                if (p + 2 >= len) return;
+                if (p + 2 >= len) {
+                    return;
+                }
                 const uint32_t h = hash3(data + p);
                 prev[p] = head[h];
                 head[h] = static_cast<int>(p);
@@ -352,37 +420,46 @@ namespace lzx {
                 }
                 const int extra = extraBitsForSlot(slot);
                 const int lenHeader = std::min(l - 2, 7);
-                const uint32_t mainSym = kNumChars + (static_cast<uint32_t>(slot) << 3) + static_cast<uint32_t>(
-                                             lenHeader);
+                const uint32_t mainSym = kNumChars + (static_cast<uint32_t>(slot) << 3) + static_cast<uint32_t>(lenHeader);
                 int bits = mainFixed[mainSym] + extra;
-                if (lenHeader == kNumPrimaryLengths) bits += lenFixed[l - 9];
+                if (lenHeader == kNumPrimaryLengths) {
+                    bits += lenFixed[l - 9];
+                }
                 return bits;
             };
             auto findBest = [&](const size_t p, int &outLen, uint32_t &outOff, int &outBits) {
                 outLen = 0;
                 outOff = 0;
                 outBits = 0;
-                if (p + 2 >= len) return;
+                if (p + 2 >= len) {
+                    return;
+                }
                 const uint32_t h = hash3(data + p);
                 int cand = head[h];
                 const size_t frameEnd = (p / kFrameSize + 1) * kFrameSize;
-                const int maxLen = static_cast<int>(std::min<size_t>(
-                    kMaxMatch, std::min<size_t>(len - p, frameEnd - p)));
+                const int maxLen = static_cast<int>(std::min<size_t>(kMaxMatch, std::min<size_t>(len - p, frameEnd - p)));
                 int examined = 0;
                 while (cand >= 0 && examined++ < 256) {
                     const uint32_t dist = p - static_cast<size_t>(cand);
-                    if (dist > static_cast<uint32_t>(kWindowSize) - 3u) break;
-                    if (outLen >= maxLen) break;
+                    if (dist > static_cast<uint32_t>(kWindowSize) - 3u) {
+                        break;
+                    }
+                    if (outLen >= maxLen) {
+                        break;
+                    }
                     if (data[cand + outLen] == data[p + outLen] || outLen == 0) {
                         int l = 0;
-                        while (l < maxLen && data[cand + l] == data[p + l]) ++l;
+                        while (l < maxLen && data[cand + l] == data[p + l]) {
+                            ++l;
+                        }
                         if (l >= 3) {
-                            const int b = matchBits(l, dist);
-                            if (outLen == 0 || b * outLen < outBits * l || (b * outLen == outBits * l && l > outLen)) {
+                            if (const int b = matchBits(l, dist); outLen == 0 || b * outLen < outBits * l || (b * outLen == outBits * l && l > outLen)) {
                                 outLen = l;
                                 outOff = dist;
                                 outBits = b;
-                                if (l == maxLen) break;
+                                if (l == maxLen) {
+                                    break;
+                                }
                             }
                         }
                     }
@@ -409,9 +486,8 @@ namespace lzx {
                     const int litCost = mainFixed[data[pos]];
                     if (nextLen >= 3) {
                         const int curCost = bestBits;
-                        const int altCost = litCost + nextBits;
                         // compare coverage: cur covers bestLen, alt covers 1+nextLen (approx) - use simple heuristic
-                        if (nextLen > bestLen + 1 && altCost * bestLen < curCost * (1 + nextLen)) {
+                        if (const int altCost = litCost + nextBits; nextLen > bestLen + 1 && altCost * bestLen < curCost * (1 + nextLen)) {
                             Token t;
                             t.isMatch = false;
                             t.mainSymbol = data[pos];
@@ -431,8 +507,7 @@ namespace lzx {
 
                     Token t;
                     t.isMatch = true;
-                    t.mainSymbol = kNumChars + (static_cast<uint32_t>(slot) << 3) +
-                                   static_cast<uint32_t>(lenHeader);
+                    t.mainSymbol = kNumChars + (static_cast<uint32_t>(slot) << 3) + static_cast<uint32_t>(lenHeader);
                     if (lenHeader == kNumPrimaryLengths) {
                         t.lengthSymbol = bestLen - 9;
                     }
@@ -443,15 +518,21 @@ namespace lzx {
                     tokens.push_back(t);
                     lz.update(slot, bestOffset);
 
-                    if (!posInserted) insert(pos);
-                    for (int k = 1; k < bestLen; ++k) insert(pos + k);
+                    if (!posInserted) {
+                        insert(pos);
+                    }
+                    for (int k = 1; k < bestLen; ++k) {
+                        insert(pos + k);
+                    }
                     pos += bestLen;
                 } else {
                     Token t;
                     t.isMatch = false;
                     t.mainSymbol = data[pos];
                     tokens.push_back(t);
-                    if (!posInserted) insert(pos);
+                    if (!posInserted) {
+                        insert(pos);
+                    }
                     ++pos;
                 }
             }
@@ -466,16 +547,21 @@ namespace lzx {
             Huffman pre;
             std::vector<uint8_t> preLen;
 
-            explicit TreeWriter(BitWriter &b) : bw(b) {
+            explicit TreeWriter(BitWriter &b) : bw(b)
+            {
                 preLen = fixedLengths(kPretreeSymbols); // 12 symbols with 4 bits, 8 with 5
                 pre = buildHuffman(preLen);
             }
 
-            void writePretreeHeader() const {
-                for (int i = 0; i < kPretreeSymbols; ++i) bw.putBits(preLen[i], 4);
+            void writePreTreeHeader() const
+            {
+                for (int i = 0; i < kPretreeSymbols; ++i) {
+                    bw.putBits(preLen[i], 4);
+                }
             }
 
-            void direct(const uint8_t target, uint8_t &previous) {
+            void direct(const uint8_t target, uint8_t &previous) const
+            {
                 const int sym = (static_cast<int>(previous) - static_cast<int>(target) + 17) % 17;
                 bw.putBits(pre.code[sym], pre.length[sym]);
                 previous = target;
@@ -483,9 +569,9 @@ namespace lzx {
 
             // Writes lengths from 'first' to 'first+count-1'. 'previous' is the
             // persistent state of the decoder (zero at the start of each frame).
-            void write(const int first, const int count, const std::vector<uint8_t> &lengths,
-                       std::vector<uint8_t> &previous) {
-                writePretreeHeader();
+            void write(const int first, const int count, const std::vector<uint8_t> &lengths, std::vector<uint8_t> &previous) const
+            {
+                writePreTreeHeader();
                 int i = first;
                 const int last = first + count;
                 while (i < last) {
@@ -495,21 +581,27 @@ namespace lzx {
                         continue;
                     }
                     int run = 0;
-                    while (i + run < last && lengths[i + run] == 0) ++run;
+                    while (i + run < last && lengths[i + run] == 0) {
+                        ++run;
+                    }
                     if (run >= 4) {
                         while (run > 0) {
                             if (run >= 20) {
                                 const int n = std::min(run, 51);
                                 bw.putBits(pre.code[18], pre.length[18]);
                                 bw.putBits(static_cast<uint32_t>(n - 20), 5);
-                                for (int k = 0; k < n; ++k) previous[i + k] = 0;
+                                for (int k = 0; k < n; ++k) {
+                                    previous[i + k] = 0;
+                                }
                                 i += n;
                                 run -= n;
                             } else {
                                 const int n = std::min(run, 19);
                                 bw.putBits(pre.code[17], pre.length[17]);
                                 bw.putBits(static_cast<uint32_t>(n - 4), 4);
-                                for (int k = 0; k < n; ++k) previous[i + k] = 0;
+                                for (int k = 0; k < n; ++k) {
+                                    previous[i + k] = 0;
+                                }
                                 i += n;
                                 run -= n;
                             }
@@ -534,14 +626,22 @@ namespace lzx {
             Huffman lengthHuff;
         };
 
-        HuffmanTrees buildTrees(const std::vector<uint32_t> &mainFreq,
-                                       const std::vector<uint32_t> &lenFreq) {
+        HuffmanTrees buildTrees(const std::vector<uint32_t> &mainFreq, const std::vector<uint32_t> &lenFreq)
+        {
             HuffmanTrees trees;
             std::vector<uint32_t> mainFreq2 = mainFreq;
-            for (auto &f: mainFreq2) if (f == 0) f = 1;
+            for (auto &f: mainFreq2) {
+                if (f == 0) {
+                    f = 1;
+                }
+            }
             trees.mainLen = computeLengths(mainFreq2, 16);
             std::vector<uint32_t> lenFreq2 = lenFreq;
-            for (auto &f: lenFreq2) if (f == 0) f = 1;
+            for (auto &f: lenFreq2) {
+                if (f == 0) {
+                    f = 1;
+                }
+            }
             trees.lengthLen = computeLengths(lenFreq2, 16);
             trees.mainHuff = buildHuffman(trees.mainLen);
             trees.lengthHuff = buildHuffman(trees.lengthLen);
@@ -556,8 +656,8 @@ namespace lzx {
             return trees;
         }
 
-        void encodeInterval(const std::vector<uint8_t> &data, BitWriter &bw,
-                            uint64_t &midOffset, uint64_t &endOffset) {
+        void encodeInterval(const std::vector<uint8_t> &data, BitWriter &bw, uint64_t &midOffset, uint64_t &endOffset)
+        {
             LzState lz;
             const std::vector<Token> tokens = tokenizeFrame(data.data(), data.size(), kPositionBase, lz);
 
@@ -600,40 +700,44 @@ namespace lzx {
                 }
 
                 // Rebuilds Huffman trees for this frame.
-                HuffmanTrees trees = buildTrees(mainFreq, lenFreq);
+                auto [mainLen, lengthLen, mainHuff, lengthHuff] = buildTrees(mainFreq, lenFreq);
 
                 // VERBATIM block header.
                 bw.putBits(kBlockTypeVerbatim, 3);
                 bw.putBits(kFrameSize, 24);
-                tw.write(0, kNumChars, trees.mainLen, prevMain);
-                tw.write(kNumChars, kMainTreeSymbols - kNumChars,
-                         trees.mainLen, prevMain);
-                tw.write(0, kNumSecondaryLengths, trees.lengthLen, prevLength);
+                tw.write(0, kNumChars, mainLen, prevMain);
+                tw.write(kNumChars, kMainTreeSymbols - kNumChars, mainLen, prevMain);
+                tw.write(0, kNumSecondaryLengths, lengthLen, prevLength);
 
                 // Encodes the tokens of this frame with the adaptive trees.
                 for (size_t i = frameStart; i < tokenIdx; ++i) {
                     const Token &t = tokens[i];
                     const uint32_t sym = t.mainSymbol;
-                    bw.putBits(trees.mainHuff.code[sym], trees.mainHuff.length[sym]);
+                    bw.putBits(mainHuff.code[sym], mainHuff.length[sym]);
                     if (t.lengthSymbol >= 0) {
                         const int ls = t.lengthSymbol;
-                        bw.putBits(trees.lengthHuff.code[ls], trees.lengthHuff.length[ls]);
+                        bw.putBits(lengthHuff.code[ls], lengthHuff.length[ls]);
                     }
-                    if (t.extraBits > 0) bw.putBits(t.footer, t.extraBits);
+                    if (t.extraBits > 0) {
+                        bw.putBits(t.footer, t.extraBits);
+                    }
                     emitted += static_cast<size_t>(t.length);
                 }
 
                 // The decoder realigns the input to a 16-bit word at the end of
                 // each 32 KiB frame.
                 bw.align16();
-                if (emitted == kFrameSize) midOffset = static_cast<uint64_t>(bw.size());
+                if (emitted == kFrameSize) {
+                    midOffset = static_cast<uint64_t>(bw.size());
+                }
             }
 
             endOffset = static_cast<uint64_t>(bw.size());
         }
     } // namespace
 
-    Result compress(const std::vector<uint8_t> &input) {
+    Result compress(const std::vector<uint8_t> &input)
+    {
         Result out;
 
         constexpr size_t intervalSize = static_cast<size_t>(kFrameSize) * kResetFrames;

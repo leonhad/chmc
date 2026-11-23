@@ -18,8 +18,8 @@ extern "C" {
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
-#include <mspack.h>
-#include <macros.h>
+#include "../libmspack/mspack.h"
+#include "../libmspack/macros.h"
 
 /* assume <string.h> exists */
 #ifndef MSPACK_NO_DEFAULT_SYSTEM

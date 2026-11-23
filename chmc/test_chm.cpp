@@ -11,12 +11,14 @@ extern "C" {
 
 namespace fs = std::filesystem;
 
-static std::vector<uint8_t> readFile(const fs::path &p) {
+static std::vector<uint8_t> readFile(const fs::path &p)
+{
     std::ifstream f(p, std::ios::binary);
     return {std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>()};
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
     if (argc < 3) {
         std::cerr << "Usage: test_chm <file.chm> <original-directory>\n";
         return 2;
@@ -36,26 +38,26 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    std::cout << "sec0.offset=" << chm->sec0.offset
-            << " dir_offset=" << chm->dir_offset
-            << " chunks=" << chm->num_chunks << "\n";
+    std::cout << "sec0.offset=" << chm->sec0.offset << " dir_offset=" << chm->dir_offset << " chunks=" << chm->num_chunks << "\n";
     for (struct mschmd_file *f = chm->sysfiles; f; f = f->next) {
-        std::cout << "SYS " << f->filename << " section=" << f->section->id
-                << " offset=" << f->offset << " bytes=" << f->length << "\n";
+        std::cout << "SYS " << f->filename << " section=" << f->section->id << " offset=" << f->offset << " bytes=" << f->length << "\n";
     }
 
     int failures = 0;
     int checked = 0;
     for (struct mschmd_file *f = chm->files; f; f = f->next) {
         std::string name = f->filename;
-        while (!name.empty() && name[0] == '/') name.erase(name.begin());
+        while (!name.empty() && name[0] == '/') {
+            name.erase(name.begin());
+        }
         if (name.empty() || name.rfind("::", 0) == 0 || name[0] == '#') {
-            std::cout << "SYSTEM " << f->filename << " section=" << f->section->id
-                    << " bytes=" << f->length << "\n";
+            std::cout << "SYSTEM " << f->filename << " section=" << f->section->id << " bytes=" << f->length << "\n";
             continue;
         }
         const fs::path original = sourceDir / name;
-        if (!fs::exists(original)) continue;
+        if (!fs::exists(original)) {
+            continue;
+        }
 
         const fs::path extracted = fs::temp_directory_path() / ("chmtest_" + name);
         const int err = chmd->extract(chmd, f, extracted.string().c_str());
@@ -67,8 +69,7 @@ int main(int argc, char **argv) {
         const auto expected = readFile(original);
         const auto actual = readFile(extracted);
         if (expected != actual) {
-            std::cerr << "DIVERGENCE " << f->filename << " expected=" << expected.size()
-                    << " got=" << actual.size() << "\n";
+            std::cerr << "DIVERGENCE " << f->filename << " expected=" << expected.size() << " got=" << actual.size() << "\n";
             ++failures;
         } else {
             std::cout << "OK " << f->filename << " (" << actual.size() << " bytes)\n";

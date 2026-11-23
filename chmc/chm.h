@@ -83,8 +83,5 @@ namespace chm {
     };
 
     // Builds an ITSF v3 CHM with section 0 (uncompressed) and section 1 (LZX).
-    bool build(const std::string &outPath,
-               const std::vector<InputFile> &files,
-               const BuildOptions &options,
-               std::string &error);
+    bool build(const std::string &outPath, const std::vector<InputFile> &files, const BuildOptions &options, std::string &error);
 } // namespace chm

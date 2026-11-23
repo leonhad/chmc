@@ -35,7 +35,7 @@ $(TARGET): $(OBJ)
 -include $(DEPS)
 
 run: $(TARGET)
-	./$(TARGET) exemplo/projeto.hhp
+	./$(TARGET) example/project.hhp
 
 rebuild: clean all
 
@@ -69,16 +69,16 @@ test-lzx: $(TEST_LZX)
 	./$(TEST_LZX) lzx_test
 
 test-chm: $(TARGET) $(TEST_CHM)
-	./$(TARGET) exemplo/projeto.hhp exemplo/projeto.chm
-	./$(TEST_CHM) exemplo/projeto.chm exemplo
+	./$(TARGET) example/project.hhp example/project.chm
+	./$(TEST_CHM) example/project.chm example
 
 $(TEST_LZX): chmc chmc lzxd.o mspack_system.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(MSPACK_INC) -o $@ \
-		chm_builder/test_lzx.cpp chm_builder/lzx.o lzxd.o mspack_system.o $(LDLIBS)
+		chmc/test_lzx.cpp chmc/lzx.o lzxd.o mspack_system.o $(LDLIBS)
 
 $(TEST_CHM): chmc chmd.o lzxd.o mspack_system.o crc32.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(MSPACK_INC) -o $@ \
-		chm_builder/test_chm.cpp chmd.o lzxd.o mspack_system.o crc32.o $(LDLIBS)
+		chmc/test_chm.cpp chmd.o lzxd.o mspack_system.o crc32.o $(LDLIBS)
 
 lzxd.o: $(MSPACK_DIR)/lzxd.c
 	$(CC) $(CFLAGS) $(MSPACK_INC) -c $< -o $@
