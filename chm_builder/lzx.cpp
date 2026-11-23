@@ -23,7 +23,7 @@ constexpr int kPretreeSymbols      = 20;
 constexpr int kMaxMatch            = 257;
 constexpr int kBlockTypeVerbatim   = 1;
 
-// Numero de slots de posicao para uma janela de 2^16 bytes (ver libmspack).
+// Número de slots de posição para uma janela de 2^16 bytes (ver libmspack).
 constexpr int kNumPositionSlots = 32;
 constexpr int kMainTreeSymbols  = kNumChars + 8 * kNumPositionSlots; // 496
 
@@ -262,7 +262,7 @@ uint32_t hash3(const uint8_t* p) {
 }
 
 // Tokeniza um intervalo de reset (2 frames, 64 KiB). O historico LZ e
-// reiniciado apenas no inicio de cada intervalo.
+// reiniciado apenas no início de cada intervalo.
 std::vector<Token> tokenizeFrame(const uint8_t* data, size_t len,
                                  const std::vector<uint32_t>& base,
                                  LzState& lz) {
@@ -381,7 +381,7 @@ std::vector<Token> tokenizeFrame(const uint8_t* data, size_t len,
 }
 
 // ---------------------------------------------------------------------------
-// Escrita das arvores (pre-trees + comprimentos diferenciais)
+// Escrita das árvores (pre-trees + comprimentos diferenciais)
 // ---------------------------------------------------------------------------
 struct TreeWriter {
     BitWriter& bw;
@@ -403,8 +403,8 @@ struct TreeWriter {
         previous = target;
     }
 
-    // Escreve os comprimentos de 'first' ate 'first+count-1'. 'previous' e o
-    // estado persistente do decodificador (zero no inicio de cada frame).
+    // Escreve os comprimentos de 'first' até 'first+count-1'. 'previous' é o
+    // estado persistente do decodificador (zero no início de cada frame).
     void write(int first, int count, const std::vector<uint8_t>& lengths,
                std::vector<uint8_t>& previous) {
         writePretreeHeader();
@@ -451,19 +451,25 @@ void encodeInterval(const std::vector<uint8_t>& data, BitWriter& bw,
     LzState lz;
     const std::vector<Token> tokens = tokenizeFrame(data.data(), data.size(), base, lz);
 
-    // Arvores Huffman dinamicas por intervalo, baseadas nas frequencias reais.
+    // Árvores Huffman dinâmicas por intervalo, baseadas nas frequências reais.
     std::vector<uint32_t> mainFreq(kMainTreeSymbols, 0);
     std::vector<uint32_t> lenFreq(kNumSecondaryLengths, 0);
     for (const Token& t : tokens) {
         if (t.mainSymbol < mainFreq.size()) mainFreq[t.mainSymbol]++;
         if (t.lengthSymbol >= 0 && t.lengthSymbol < static_cast<int>(lenFreq.size())) lenFreq[t.lengthSymbol]++;
     }
-    const std::vector<uint8_t> mainLen = fixedLengths(kMainTreeSymbols);
-    const std::vector<uint8_t> lengthLen = fixedLengths(kNumSecondaryLengths);
-    const Huffman mainHuff = buildHuffman(mainLen);
-    const Huffman lengthHuff = buildHuffman(lengthLen);
+    std::vector<uint32_t> mainFreq2 = mainFreq;
+    for (auto &f : mainFreq2) if (f == 0) f = 1;
+    std::vector<uint8_t> mainLen = computeLengths(mainFreq2, 16);
+    std::vector<uint32_t> lenFreq2 = lenFreq;
+    for (auto &f : lenFreq2) if (f == 0) f = 1;
+    std::vector<uint8_t> lengthLen = computeLengths(lenFreq2, 16);
+    Huffman mainHuff = buildHuffman(mainLen);
+    Huffman lengthHuff = buildHuffman(lengthLen);
+    if (!mainHuff.complete) { mainLen = fixedLengths(kMainTreeSymbols); mainHuff = buildHuffman(mainLen); }
+    if (!lengthHuff.complete) { lengthLen = fixedLengths(kNumSecondaryLengths); lengthHuff = buildHuffman(lengthLen); }
 
-    // Cabecalho E8 desabilitado. Ele e lido apenas no inicio do intervalo
+    // Cabeçalho E8 desabilitado. Ele é lido apenas no início do intervalo
     // de reset (o decodificador relê o estado de Huffman a cada 2 frames).
     bw.putBit(0);
 
@@ -474,8 +480,8 @@ void encodeInterval(const std::vector<uint8_t>& data, BitWriter& bw,
 
     for (const Token& t : tokens) {
         if ((emitted % kFrameSize) == 0) {
-            // Cada frame comeca com seu proprio bloco VERBATIM de 32 KiB.
-            // As arvores sao transmitidas em todos os blocos, mas os deltas
+            // Cada frame começa com seu próprio bloco VERBATIM de 32 KiB.
+            // As árvores são transmitidas em todos os blocos, mas os deltas
             // sao relativos ao bloco anterior (zerados no reset do intervalo).
             bw.putBits(kBlockTypeVerbatim, 3);
             bw.putBits(static_cast<uint32_t>(kFrameSize), 24);
@@ -511,7 +517,7 @@ Result compress(const std::vector<uint8_t>& input, int windowBits) {
     Result out;
     if (windowBits != kWindowBits) {
         // O perfil CHM usa exclusivamente 64 KiB. Mantemos o parametro para
-        // documentar a restricao, sem silenciosamente gerar um fluxo invalido.
+        // documentar a restrição, sem silenciosamente gerar um fluxo inválido.
         windowBits = kWindowBits;
     }
 

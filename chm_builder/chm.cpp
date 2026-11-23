@@ -100,7 +100,7 @@ void encIntLe7At(std::vector<uint8_t>& v, size_t& at, uint64_t x) {
     for (uint8_t b : tmp) v[at++] = b;
 }
 
-// GUIDs ja em ordem de bytes (os tres primeiros campos little-endian).
+// GUIDs já em ordem de bytes (os três primeiros campos little-endian).
 const uint8_t kGuidDir[16]  = {0x10,0xFD,0x01,0x7C,0xAA,0x7B,0xD0,0x11,
                                0x9E,0x0C,0x00,0xA0,0xC9,0x22,0xE6,0xEC};
 const uint8_t kGuidData[16] = {0x11,0xFD,0x01,0x7C,0xAA,0x7B,0xD0,0x11,
@@ -164,7 +164,7 @@ struct Internal {
     bool synthWindow = false;
 };
 
-// Extrai o conteudo da tag <title> de um arquivo HTML/HHC/HHK.
+// Extrai o conteúdo da tag <title> de um arquivo HTML/HHC/HHK.
 std::string htmlTitle(const std::vector<uint8_t>& data) {
     std::string s(reinterpret_cast<const char*>(data.data()), data.size());
     const std::string low = lower(s);
@@ -189,7 +189,7 @@ uint32_t makeId(const std::string& s) {
 }
 
 // ---------------------------------------------------------------------------
-// Blobs internos de indice: $OBJINST, $WW* e $FIftiMain
+// Blobs internos de índice: $OBJINST, $WW* e $FIftiMain
 // ---------------------------------------------------------------------------
 std::string normalizeLocal(std::string s) {
     for (char& c : s) if (c == '\\') c = '/';
@@ -197,7 +197,7 @@ std::string normalizeLocal(std::string s) {
     return lower(s);
 }
 
-// $OBJINST e uma lista de dois objetos COM usados pelo motor de indice.
+// $OBJINST é uma lista de dois objetos COM usados pelo motor de índice.
 std::vector<uint8_t> buildObjInst(uint32_t lcid) {
     std::vector<uint8_t> v;
     w32(v, 0x04000000u);
@@ -278,7 +278,7 @@ std::vector<uint8_t> listingEntryBytes(const KeywordIndexEntry& e) {
     return v;
 }
 
-// Entrada de nivel superior: termina com o numero do bloco filho.
+// Entrada de nível superior: termina com o número do bloco filho.
 std::vector<uint8_t> indexEntryBytes(const std::vector<uint8_t>& listing,
                                      uint32_t childBlock) {
     std::vector<uint8_t> v(listing.begin(), listing.end() - 8);
@@ -343,7 +343,7 @@ BlobSet buildKeywordLinks(const std::vector<KeywordIndexEntry>& entries,
         lastListing.back() = 0; // mod13 nao participa do cabecalho de indice
 
         // Cada registro de dados e constante; o segundo DWORD parece ser o
-        // numero total de nos de topico do CHM.
+        // número total de nós de tópico do CHM.
         uint8_t dataEntry[13] = {0,0,0,0,0,0,0,0,0x80,0,0,0,0};
         put32(dataEntry, 4, totalTopics);
         out.data.insert(out.data.end(), dataEntry, dataEntry + 13);
@@ -351,7 +351,7 @@ BlobSet buildKeywordLinks(const std::vector<KeywordIndexEntry>& entries,
     flushLeaf();
 
     // Mapa: quantidade de blocos de listagem e, para cada um, a quantidade
-    // acumulada de entradas antes dele e o numero do bloco.
+    // acumulada de entradas antes dele e o número do bloco.
     w16(out.map, static_cast<uint16_t>(leaves.size()));
     uint32_t accumulated = 0;
     for (size_t i = 0; i < leaves.size(); ++i) {
@@ -365,7 +365,7 @@ BlobSet buildKeywordLinks(const std::vector<KeywordIndexEntry>& entries,
     out.prop.clear();
     for (uint32_t p : props) w32(out.prop, p);
 
-    // Niveis de indice, quando ha mais de um bloco de listagem.
+    // Níveis de índice, quando há mais de um bloco de listagem.
     std::vector<std::vector<uint8_t>> allBlocks;
     allBlocks.push_back(std::vector<uint8_t>(out.btree.begin(), out.btree.begin() + leaves.size() * 2048));
     struct IndexItem {
@@ -431,7 +431,7 @@ BlobSet buildKeywordLinks(const std::vector<KeywordIndexEntry>& entries,
 }
 
 // ---------------------------------------------------------------------------
-// $FIftiMain: indice de texto integral
+// $FIftiMain: índice de texto integral
 // ---------------------------------------------------------------------------
 struct HtmlWord {
     std::string text;
@@ -635,7 +635,7 @@ std::vector<uint8_t> buildFtiMain(const std::vector<FtiWord>& words,
     std::vector<uint8_t> out(0x400, 0);
 
     // O escritor do FPC usa estas raizes provisorias e grava os mesmos valores
-    // no cabecalho final. As escalas ficam em 2.
+    // no cabeçalho final. As escalas ficam em 2.
     constexpr int kDocRoot = 1, kCountRoot = 1, kLocRoot = 5;
     constexpr size_t kNodeSize = 4096;
     struct NodeRef { uint32_t offset = 0; std::string lastWord; };
@@ -699,8 +699,8 @@ std::vector<uint8_t> buildFtiMain(const std::vector<FtiWord>& words,
     }
     flushLeaf();
 
-    // Nos de indice: cada entrada guarda o ultimo termo do bloco filho e o
-    // offset absoluto desse bloco. O cabecalho de um no de indice tem apenas
+    // Nós de índice: cada entrada guarda o último termo do bloco filho e o
+    // offset absoluto desse bloco. O cabeçalho de um nó de índice tem apenas
     // o WORD de espaco livre; as entradas comecam no offset 2.
     std::vector<NodeRef> level = leaves;
     size_t indexLevels = 0;
@@ -779,9 +779,9 @@ Internal buildInternal(const BuildOptions& opt,
     Internal in;
 
         // --- #STRINGS -----------------------------------------------------------
-    // Ordem observada em CHMs compilados pelo HHA: "", nome da janela, titulo,
-    // sumario, indice, topico inicial, titulos dos topicos (HTML) e titulos
-    // dos arquivos de sumario/indice. A fonte fica no codigo 16 de #SYSTEM.
+    // Ordem observada em CHMs compilados pelo HHA: "", nome da janela, título,
+    // sumário, índice, tópico inicial, títulos dos tópicos (HTML) e títulos
+    // dos arquivos de sumário/índice. A fonte fica no código 16 de #SYSTEM.
     auto findFile = [&](const std::string& internal) -> const InputFile* {
         for (const InputFile& f : files) {
             if (stripSlash(f.internalName) == internal) return &f;
@@ -847,7 +847,7 @@ Internal buildInternal(const BuildOptions& opt,
     (void)dw;
     (void)stAddFile;
 
-        // --- Topicos: HTML do sumario, HTML solto, sumario.hhc e indice.hhk -----
+        // --- Tópicos: HTML do sumário, HTML solto, sumário.hhc e índice.hhk -----
     struct Topic {
         std::string local;
         std::string title;
@@ -1101,7 +1101,7 @@ std::unordered_set<std::string> knownLocals;
         WSTR(0xA8, w.urlJump2);                  // pszUrlJump2
     }
 
-        // --- Indice binario de palavras-chave ($WW*) ----------------------------
+        // --- Índice binário de palavras-chave ($WW*) ----------------------------
     std::map<std::string, uint32_t> topicByLocalBin;
     for (size_t i = 0; i < htmlTopicCount; ++i) {
         topicByLocalBin[normalizeLocal(topics[i].local)] = static_cast<uint32_t>(i);
@@ -1131,7 +1131,7 @@ std::unordered_set<std::string> knownLocals;
     in.aLinksProperty.assign(4, 0);
     in.objinst = buildObjInst(opt.lcid);
 
-        // --- Indice de texto integral ($FIftiMain) ------------------------------
+        // --- Índice de texto integral ($FIftiMain) ------------------------------
     std::vector<FtiWord> ftiWords;
     std::map<std::string, size_t> ftiIndex;
     FtiStats stats;
@@ -1162,7 +1162,7 @@ std::unordered_set<std::string> knownLocals;
             fw.docs.back().positions.push_back(hw.position);
         }
     }
-    // O leitor percorre a arvore em ordem de CompareStr; a forma de titulo vem
+    // O leitor percorre a árvore em ordem de CompareStr; a forma de título vem
     // antes da forma de corpo quando a palavra e a mesma.
     std::sort(ftiWords.begin(), ftiWords.end(), [](const FtiWord& a, const FtiWord& b) {
         if (a.text != b.text) return a.text < b.text;
@@ -1260,14 +1260,14 @@ void finishPmgl(Chunk& c, int prev, int next) {
         entryLen = static_cast<size_t>(p - (c.data.data() + inChunk));
         inChunk += entryLen;
     }
-    // O HHC grava os quickrefs em ordem inversa e relativos ao inicio da
-    // area de entradas (apos os 20 bytes de cabecalho do chunk).
+    // O HHC grava os quickrefs em ordem inversa e relativos ao início da
+    // área de entradas (após os 20 bytes de cabeçalho do chunk).
     int qpos = 4094;
     for (auto it = quickrefs.rbegin(); it != quickrefs.rend(); ++it) {
         qpos -= 2;
         put16(c.data.data(), static_cast<size_t>(qpos), *it);
     }
-    // QuickRefSize cobre toda a area livre apos as entradas, incluindo a
+    // QuickRefSize cobre toda a área livre após as entradas, incluindo a
     // tabela de quickrefs e o WORD final de contagem. inChunk e offset
     // absoluto no chunk (20 + bytes de entradas).
     put32(c.data.data(), 4, static_cast<uint32_t>(4096 - inChunk));
@@ -1359,7 +1359,7 @@ bool buildDirectory(const std::vector<DirEntry>& entries,
     dir.numChunks = static_cast<uint32_t>(dir.pmgl.size());
 
     if (dir.pmgl.size() > 1) {
-        // Um unico chunk PMGI com o primeiro nome de cada chunk PMGL.
+        // Um único chunk PMGI com o primeiro nome de cada chunk PMGL.
         Chunk pmgi;
         for (size_t i = 0; i < dir.pmgl.size(); ++i) {
             const uint8_t* p = pmgi.data.data() + 8 + pmgi.dataLen;
@@ -1398,14 +1398,14 @@ bool buildDirectory(const std::vector<DirEntry>& entries,
 }
 
 // ---------------------------------------------------------------------------
-// Blocos de metadados da secao MSCompressed
+// Blocos de metadados da seção MSCompressed
 // ---------------------------------------------------------------------------
 std::vector<uint8_t> makeNameList() {
     const char* names[] = {"Uncompressed", "MSCompressed"};
 
     std::vector<uint8_t> v;
     // O primeiro campo e o offset do terminador da primeira string, medido
-    // a partir do inicio do arquivo (0x1E para "Uncompressed").
+    // a partir do início do arquivo (0x1E para "Uncompressed").
     w16(v, static_cast<uint16_t>(2 + 4 + 2 * std::strlen(names[0])));
     w16(v, 2);
     for (const char* nm : names) {
@@ -1455,7 +1455,7 @@ std::vector<uint8_t> makeResetTable(const lzx::Result& lz) {
 }
 
 // ---------------------------------------------------------------------------
-// Entrada pendente: dados ainda nao posicionados numa secao
+// Entrada pendente: dados ainda não posicionados numa seção
 // ---------------------------------------------------------------------------
 struct Pending {
     std::string name;
@@ -1476,7 +1476,7 @@ bool build(const std::string& outPath,
 
     Internal in = buildInternal(options, files);
 
-    // --- Secao 1: todos os arquivos comprimidos com LZX --------------------
+    // --- Seção 1: todos os arquivos comprimidos com LZX --------------------
     std::vector<Pending> compressed;
     auto addCompressed = [&](const std::string& name,
                              const std::vector<uint8_t>& data) {
@@ -1490,7 +1490,7 @@ bool build(const std::string& outPath,
     addCompressed("/#URLTBL", in.urltbl);
     addCompressed("/#URLSTR", in.urlstr);
 
-    // Arquivos internos de indice do HTML Help Workshop.
+    // Arquivos internos de índice do HTML Help Workshop.
     addCompressed("/$FIftiMain", in.fti);
     addCompressed("/$OBJINST", in.objinst);
     addCompressed("/$WWAssociativeLinks/Property", in.aLinksProperty);
@@ -1507,13 +1507,13 @@ bool build(const std::string& outPath,
     }
     const lzx::Result lz = lzx::compress(sec1);
 
-    // --- Secao 0: arquivos nao comprimidos ---------------------------------
+    // --- Seção 0: arquivos não comprimidos ---------------------------------
     std::vector<Pending> rawFiles;
     auto addRaw = [&](const std::string& name,
                       const std::vector<uint8_t>& data) {
         rawFiles.push_back({name, 0, data, true, 0, 0});
     };
-    // O HHC coloca NameList no inicio da secao 0, seguido de #SYSTEM.
+    // O HHC coloca NameList no início da seção 0, seguido de #SYSTEM.
     addRaw("::DataSpace/NameList", makeNameList());
     addRaw("/#SYSTEM", in.system);
     addRaw("/#ITBITS", {});
@@ -1534,7 +1534,7 @@ bool build(const std::string& outPath,
         sec0.insert(sec0.end(), p.data.begin(), p.data.end());
     }
 
-    // Content: ponteiro para o fluxo LZX; seus dados ficam depois da secao 0.
+    // Content: ponteiro para o fluxo LZX; seus dados ficam depois da seção 0.
     rawFiles.push_back({"::DataSpace/Storage/MSCompressed/Content", 0, {}, false,
                         static_cast<uint64_t>(sec0.size()), lz.stream.size()});
 
@@ -1562,7 +1562,7 @@ bool build(const std::string& outPath,
     const uint64_t contentOffset = 0x60 + 0x18 + 0x54 + dirBytes;
     const uint64_t totalLen = contentOffset + sec0.size() + lz.stream.size();
 
-    // --- ITSF + tabela de secoes -------------------------------------------
+    // --- ITSF + tabela de seções -------------------------------------------
     std::vector<uint8_t> out;
     raw(out, "ITSF", 4);
     w32(out, 3);

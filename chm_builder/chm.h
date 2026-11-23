@@ -74,7 +74,7 @@ struct BuildOptions {
     std::vector<WindowDef> windows;
 };
 
-// Monta um CHM ITSF v3 com secao 0 (nao comprimida) e secao 1 (LZX).
+// Monta um CHM ITSF v3 com seção 0 (não comprimida) e seção 1 (LZX).
 bool build(const std::string& outPath,
            const std::vector<InputFile>& files,
            const BuildOptions& options,

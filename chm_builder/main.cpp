@@ -552,7 +552,7 @@ bool parseHhk(const fs::path& path, std::vector<chm::KeywordEntry>& keywords,
 }
 
 // ---------------------------------------------------------------------------
-// Arquivos e referencias
+// Arquivos e referências
 // ---------------------------------------------------------------------------
 bool isAsset(const std::string& name) {
     const std::string ext = lower(fs::path(name).extension().string());
@@ -664,7 +664,7 @@ int main(int argc, char** argv) {
         return true;
     };
 
-    // Ordem: [FILES] do HHP, sumario, indice, topico inicial e hhc/hhk.
+    // Ordem: [FILES] do HHP, sumário, índice, tópico inicial e hhc/hhk.
     for (const std::string& f : hhp.files) addFile(f, true);
     if (!contentsRel.empty()) addFile(contentsRel, true);
     if (!indexRel.empty()) addFile(indexRel, true);
@@ -680,7 +680,7 @@ if (!parseHhk(base / fs::path(indexRel), opt.keywords, error)) {
     }
     for (const chm::TocEntry& e : opt.toc) addFile(e.local, true);
 
-    // Imagens/CSS referenciados por HTML e pelo proprio hhc/hhk.
+    // Imagens/CSS referenciados por HTML e pelo próprio hhc/hhk.
     std::vector<std::string> pendingAssets;
     for (const chm::InputFile& f : files) {
         for (const std::string& ref : assetReferences(f.data)) {
