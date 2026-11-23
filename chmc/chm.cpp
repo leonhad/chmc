@@ -516,6 +516,7 @@ namespace chm {
                                  std::vector<HtmlWord> &out) {
             // Replaces entities with a single character (or separator) and lowercase.
             std::string s;
+            s.reserve(raw.size());
             for (size_t i = 0; i < raw.size();) {
                 if (raw[i] == '&') {
                     size_t j = i + 1;
@@ -840,10 +841,20 @@ namespace chm {
             // Order observed in CHMs compiled by HHA: "", window name, title,
             // table of contents, index, starting topic, topic titles (HTML) and titles
             // of table of contents/index files. The font is in code 16 of #SYSTEM.
+            // Precompute sorted index for O(log n) file lookup instead of O(n) linear scan.
+            std::vector<std::pair<std::string, const InputFile *>> fileIndex;
+            fileIndex.reserve(files.size());
+            for (const InputFile &f: files) {
+                fileIndex.emplace_back(stripSlash(f.internalName), &f);
+            }
+            std::sort(fileIndex.begin(), fileIndex.end(),
+                      [](const auto &a, const auto &b) { return a.first < b.first; });
             auto findFile = [&](const std::string &internal) -> const InputFile * {
-                for (const InputFile &f: files) {
-                    if (stripSlash(f.internalName) == internal) return &f;
-                }
+                auto it = std::lower_bound(fileIndex.begin(), fileIndex.end(), internal,
+                                           [](const auto &pair, const std::string &s) {
+                                               return pair.first < s;
+                                           });
+                if (it != fileIndex.end() && it->first == internal) return it->second;
                 return nullptr;
             };
 
