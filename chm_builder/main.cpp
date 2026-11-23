@@ -1,6 +1,7 @@
 #include "chm.h"
 
 #include <algorithm>
+#include <memory>
 #include <cctype>
 #include <chrono>
 #include <ctime>
@@ -639,7 +640,7 @@ int main(int argc, char** argv) {
     }
     std::vector<chm::InputFile> files;
     std::set<std::string> names;
-    auto addFile = [&](const std::string& rel, bool required) -> bool {
+        auto addFile = [&](const std::string& rel, bool required) -> bool {
         if (rel.empty()) return true;
         const std::string name = internalName(rel);
         if (name == "/" || names.count(name)) return true;
@@ -683,7 +684,7 @@ if (!parseHhk(base / fs::path(indexRel), opt.keywords, error)) {
             if (isAsset(ref)) pendingAssets.push_back(ref);
         }
     }
-for (const std::string& ref : pendingAssets) addFile(ref, false);
+    for (const std::string& ref : pendingAssets) addFile(ref, false);
 
     // Garante que arquivos referenciados por [WINDOWS] sejam considerados.
     for (const chm::WindowDef& w : opt.windows) {
