@@ -139,12 +139,6 @@ with those from the HHC, and the `$FIftiMain` was decoded using the FPC reader s
   table index and is not affected.
 - The `.hhc` / `.hhk` parser recognizes `<UL>`, `<LI>`, and `<OBJECT type="text/sitemap">`
   with `Name` and `Local` parameters; it is not a complete HTML parser.
-- Fixed Huffman trees are used instead of frequency-optimal trees. This slightly increases
-  the compressed size, but avoids pretree delta encoding bugs and was
-  validated with `lzxd.c` on multi-frame files.
 - No support for ActiveX, macros, or special navigation scripts.
-  - Custom *embedded windows* are supported via advanced fields of
-  `HH_WINTYPE` (`rcHTML`, `tabOrder`, `cHistory`, `rcMinSize`, `cbInfoTypes`,
-  `pszCustomTabs`).
 
 For binary details, see `doc/chm.md` and `doc/lzx.md`.
