@@ -281,8 +281,21 @@ std::vector<Token> tokenizeFrame(const uint8_t* data, size_t len,
         head[h] = static_cast<int>(p);
     };
 
-    auto findBest = [&](size_t p, int& outLen, uint32_t& outOff) {
-        outLen = 0; outOff = 0;
+    const auto mainFixed = fixedLengths(kMainTreeSymbols);
+    const auto lenFixed = fixedLengths(kNumSecondaryLengths);
+    auto matchBits = [&](int l, uint32_t dist) -> int {
+        uint32_t fo = dist + 2;
+        int slot = 0;
+        for (int s = kNumPositionSlots - 1; s >= 0; --s) { if (base[s] <= fo) { slot = s; break; } }
+        const int extra = extraBitsForSlot(slot);
+        const int lenHeader = std::min(l - 2, 7);
+        const uint32_t mainSym = kNumChars + (static_cast<uint32_t>(slot) << 3) + static_cast<uint32_t>(lenHeader);
+        int bits = mainFixed[mainSym] + extra;
+        if (lenHeader == kNumPrimaryLengths) bits += lenFixed[l - 9];
+        return bits;
+    };
+    auto findBest = [&](size_t p, int& outLen, uint32_t& outOff, int& outBits) {
+        outLen = 0; outOff = 0; outBits = 0;
         if (p + 2 >= len) return;
         const uint32_t h = hash3(data + p);
         int cand = head[h];
@@ -297,7 +310,13 @@ std::vector<Token> tokenizeFrame(const uint8_t* data, size_t len,
             if (data[cand + outLen] == data[p + outLen] || outLen == 0) {
                 int l = 0;
                 while (l < maxLen && data[cand + l] == data[p + l]) ++l;
-                if (l > outLen) { outLen = l; outOff = dist; if (l == maxLen) break; }
+                if (l >= 3) {
+                    const int b = matchBits(l, dist);
+                    if (outLen == 0 || b * outLen < outBits * l || (b * outLen == outBits * l && l > outLen)) {
+                        outLen = l; outOff = dist; outBits = b;
+                        if (l == maxLen) break;
+                    }
+                }
             }
             cand = prev[cand];
         }
@@ -305,23 +324,23 @@ std::vector<Token> tokenizeFrame(const uint8_t* data, size_t len,
 
     size_t pos = 0;
     while (pos < len) {
-        int bestLen = 0;
-        uint32_t bestOffset = 0;
-        findBest(pos, bestLen, bestOffset);
+        int bestLen = 0; uint32_t bestOffset = 0; int bestBits = 0;
+        findBest(pos, bestLen, bestOffset, bestBits);
 
         bool posInserted = false;
-        // Lazy matching: if next position gives a longer match, emit literal.
         if (bestLen >= 3 && bestLen < kMaxMatch && pos + 1 < len) {
-            int nextLen = 0; uint32_t nextOff = 0;
+            int nextLen = 0; uint32_t nextOff = 0; int nextBits = 0;
             insert(pos); posInserted = true;
-            findBest(pos + 1, nextLen, nextOff);
-            if (nextLen > bestLen + 1) {
-                Token t;
-                t.isMatch = false;
-                t.mainSymbol = data[pos];
-                tokens.push_back(t);
-                ++pos;
-                continue;
+            findBest(pos + 1, nextLen, nextOff, nextBits);
+            // literal at pos + match at pos+1 vs match at pos: prefer if next is cheaper per byte
+            const int litCost = mainFixed[data[pos]];
+            if (nextLen >= 3) {
+                const int curCost = bestBits;
+                const int altCost = litCost + nextBits;
+                // compare coverage: cur covers bestLen, alt covers 1+nextLen (approx) - use simple heuristic
+                if (nextLen > bestLen + 1 && altCost * bestLen < curCost * (1 + nextLen)) {
+                    Token t; t.isMatch = false; t.mainSymbol = data[pos]; tokens.push_back(t); ++pos; continue;
+                }
             }
         }
 
@@ -440,10 +459,9 @@ void encodeInterval(const std::vector<uint8_t>& data, BitWriter& bw,
         if (t.lengthSymbol >= 0 && t.lengthSymbol < static_cast<int>(lenFreq.size())) lenFreq[t.lengthSymbol]++;
     }
     const std::vector<uint8_t> mainLen = fixedLengths(kMainTreeSymbols);
-    std::vector<uint8_t> lengthLen = computeLengths(lenFreq, 16);
-    Huffman mainHuff = buildHuffman(mainLen);
-    Huffman lengthHuff = buildHuffman(lengthLen);
-    if (!lengthHuff.complete) { lengthLen = fixedLengths(kNumSecondaryLengths); lengthHuff = buildHuffman(lengthLen); }
+    const std::vector<uint8_t> lengthLen = fixedLengths(kNumSecondaryLengths);
+    const Huffman mainHuff = buildHuffman(mainLen);
+    const Huffman lengthHuff = buildHuffman(lengthLen);
 
     // Cabecalho E8 desabilitado. Ele e lido apenas no inicio do intervalo
     // de reset (o decodificador relê o estado de Huffman a cada 2 frames).

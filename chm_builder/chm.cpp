@@ -788,14 +788,6 @@ Internal buildInternal(const BuildOptions& opt,
         }
         return nullptr;
     };
-    auto pageTitle = [&](const std::string& internal,
-                         const std::string& fallback) {
-        if (const InputFile* f = findFile(internal)) {
-            const std::string t = htmlTitle(f->data);
-            if (!t.empty()) return t;
-        }
-        return fallback;
-    };
 
     StringTable st;
     auto stAddFile = [&](const std::string& s) -> uint32_t {
