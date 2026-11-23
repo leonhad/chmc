@@ -447,28 +447,46 @@ struct TreeWriter {
 // ---------------------------------------------------------------------------
 // Um frame LZX independente
 // ---------------------------------------------------------------------------
+// Reconstrói as árvores Huffman a partir das frequências de um frame.
+// Retorna true se as árvores são válidas (complete).
+struct HuffmanTrees {
+    std::vector<uint8_t> mainLen;
+    std::vector<uint8_t> lengthLen;
+    Huffman mainHuff;
+    Huffman lengthHuff;
+};
+
+static HuffmanTrees buildTrees(const std::vector<uint32_t>& mainFreq,
+                                const std::vector<uint32_t>& lenFreq) {
+    HuffmanTrees trees;
+    std::vector<uint32_t> mainFreq2 = mainFreq;
+    for (auto &f : mainFreq2) if (f == 0) f = 1;
+    trees.mainLen = computeLengths(mainFreq2, 16);
+    std::vector<uint32_t> lenFreq2 = lenFreq;
+    for (auto &f : lenFreq2) if (f == 0) f = 1;
+    trees.lengthLen = computeLengths(lenFreq2, 16);
+    trees.mainHuff = buildHuffman(trees.mainLen);
+    trees.lengthHuff = buildHuffman(trees.lengthLen);
+    if (!trees.mainHuff.complete) {
+        trees.mainLen = fixedLengths(kMainTreeSymbols);
+        trees.mainHuff = buildHuffman(trees.mainLen);
+    }
+    if (!trees.lengthHuff.complete) {
+        trees.lengthLen = fixedLengths(kNumSecondaryLengths);
+        trees.lengthHuff = buildHuffman(trees.lengthLen);
+    }
+    return trees;
+}
+
 void encodeInterval(const std::vector<uint8_t>& data, BitWriter& bw,
                     uint64_t& midOffset, uint64_t& endOffset) {
     LzState lz;
     const std::vector<Token> tokens = tokenizeFrame(data.data(), data.size(), kPositionBase, lz);
 
-    // Árvores Huffman dinâmicas por intervalo, baseadas nas frequências reais.
-    std::vector<uint32_t> mainFreq(kMainTreeSymbols, 0);
-    std::vector<uint32_t> lenFreq(kNumSecondaryLengths, 0);
-    for (const Token& t : tokens) {
-        if (t.mainSymbol < mainFreq.size()) mainFreq[t.mainSymbol]++;
-        if (t.lengthSymbol >= 0 && t.lengthSymbol < static_cast<int>(lenFreq.size())) lenFreq[t.lengthSymbol]++;
-    }
-    std::vector<uint32_t> mainFreq2 = mainFreq;
-    for (auto &f : mainFreq2) if (f == 0) f = 1;
-    std::vector<uint8_t> mainLen = computeLengths(mainFreq2, 16);
-    std::vector<uint32_t> lenFreq2 = lenFreq;
-    for (auto &f : lenFreq2) if (f == 0) f = 1;
-    std::vector<uint8_t> lengthLen = computeLengths(lenFreq2, 16);
-    Huffman mainHuff = buildHuffman(mainLen);
-    Huffman lengthHuff = buildHuffman(lengthLen);
-    if (!mainHuff.complete) { mainLen = fixedLengths(kMainTreeSymbols); mainHuff = buildHuffman(mainLen); }
-    if (!lengthHuff.complete) { lengthLen = fixedLengths(kNumSecondaryLengths); lengthHuff = buildHuffman(lengthLen); }
+    // Huffman adaptativo: as árvores são recalculadas a cada frame de 32 KiB,
+    // refletindo a distribuição real dos símbolos de cada frame.
+    // A janela LZ de 64 KiB permanece intacta — apenas a codificação Huffman
+    // se adapta, melhorando a compressão quando a distribuição varia entre frames.
 
     // Cabeçalho E8 desabilitado. Ele é lido apenas no início do intervalo
     // de reset (o decodificador relê o estado de Huffman a cada 2 frames).
@@ -479,34 +497,58 @@ void encodeInterval(const std::vector<uint8_t>& data, BitWriter& bw,
     std::vector<uint8_t> prevLength(kNumSecondaryLengths + 1, 0);
     size_t emitted = 0;
 
-    for (const Token& t : tokens) {
-        if (emitted % kFrameSize == 0) {
-            // Cada frame começa com seu próprio bloco VERBATIM de 32 KiB.
-            // As árvores são transmitidas em todos os blocos, mas os deltas
-            // são relativos ao bloco anterior (zerados no reset do intervalo).
-            bw.putBits(kBlockTypeVerbatim, 3);
-            bw.putBits(kFrameSize, 24);
-            tw.write(0, kNumChars, mainLen, prevMain);
-            tw.write(kNumChars, kMainTreeSymbols - kNumChars,
-                     mainLen, prevMain);
-            tw.write(0, kNumSecondaryLengths, lengthLen, prevLength);
+    // Percorre os tokens, recalculando as árvores a cada frame.
+    size_t tokenIdx = 0;
+    while (tokenIdx < tokens.size()) {
+        // Identifica os tokens deste frame: todos os tokens cujo length acumulado
+        // cabe neste frame de 32 KiB.
+        size_t frameStart = tokenIdx;
+        size_t frameBytes = 0;
+
+        // Acumula frequências para este frame.
+        std::vector<uint32_t> mainFreq(kMainTreeSymbols, 0);
+        std::vector<uint32_t> lenFreq(kNumSecondaryLengths, 0);
+
+        while (tokenIdx < tokens.size() && frameBytes < static_cast<size_t>(kFrameSize)) {
+            const Token& t = tokens[tokenIdx];
+            if (t.mainSymbol < static_cast<uint32_t>(kMainTreeSymbols)) {
+                mainFreq[t.mainSymbol]++;
+            }
+            if (t.lengthSymbol >= 0 && t.lengthSymbol < kNumSecondaryLengths) {
+                lenFreq[static_cast<size_t>(t.lengthSymbol)]++;
+            }
+            frameBytes += static_cast<size_t>(t.length);
+            ++tokenIdx;
         }
 
-        const uint32_t sym = t.mainSymbol;
-        bw.putBits(mainHuff.code[sym], mainHuff.length[sym]);
-        if (t.lengthSymbol >= 0) {
-            const int ls = t.lengthSymbol;
-            bw.putBits(lengthHuff.code[ls], lengthHuff.length[ls]);
+        // Reconstrói as árvores Huffman para este frame.
+        HuffmanTrees trees = buildTrees(mainFreq, lenFreq);
+
+        // Cabeçalho do bloco VERBATIM.
+        bw.putBits(kBlockTypeVerbatim, 3);
+        bw.putBits(kFrameSize, 24);
+        tw.write(0, kNumChars, trees.mainLen, prevMain);
+        tw.write(kNumChars, kMainTreeSymbols - kNumChars,
+                 trees.mainLen, prevMain);
+        tw.write(0, kNumSecondaryLengths, trees.lengthLen, prevLength);
+
+        // Codifica os tokens deste frame com as árvores adaptativas.
+        for (size_t i = frameStart; i < tokenIdx; ++i) {
+            const Token& t = tokens[i];
+            const uint32_t sym = t.mainSymbol;
+            bw.putBits(trees.mainHuff.code[sym], trees.mainHuff.length[sym]);
+            if (t.lengthSymbol >= 0) {
+                const int ls = t.lengthSymbol;
+                bw.putBits(trees.lengthHuff.code[ls], trees.lengthHuff.length[ls]);
+            }
+            if (t.extraBits > 0) bw.putBits(t.footer, t.extraBits);
+            emitted += static_cast<size_t>(t.length);
         }
-        if (t.extraBits > 0) bw.putBits(t.footer, t.extraBits);
-        emitted += static_cast<size_t>(t.length);
 
         // O decodificador realinha a entrada em word de 16 bits no fim de
         // cada frame de 32 KiB.
-        if (emitted % kFrameSize == 0) {
-            bw.align16();
-            if (emitted == kFrameSize) midOffset = static_cast<uint64_t>(bw.size());
-        }
+        bw.align16();
+        if (emitted == kFrameSize) midOffset = static_cast<uint64_t>(bw.size());
     }
 
     endOffset = static_cast<uint64_t>(bw.size());
