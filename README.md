@@ -47,7 +47,7 @@ make -f Makefile.win test    # runs the tests when libmspack is available
 ## Usage
 
 ```bash
-src <project.hhp> [output_file.chm]
+chmc <project.hhp> [output_file.chm]
 ```
 
 If the second argument is omitted, the output name comes from the `Compiled file=` field in the `.hhp`.
@@ -56,7 +56,7 @@ Example:
 
 ```bash
 cd example
-../src.exe project.hhp
+../chmc.exe project.hhp
 ```
 
 The command above generates `project.chm`.
