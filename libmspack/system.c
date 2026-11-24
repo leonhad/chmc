@@ -113,7 +113,7 @@ struct mspack_file_p {
   const char *name;
 };
 
-static struct mspack_file *msp_open(struct mspack_system *self,
+static struct mspack_file *msp_open(struct mspack_system *a,
                                     const char *filename, int mode)
 {
   struct mspack_file_p *fh;
@@ -198,7 +198,7 @@ static void msp_msg(struct mspack_file *file, const char *format, ...) {
   fflush(stderr);
 }
 
-static void *msp_alloc(struct mspack_system *self, size_t bytes) {
+static void *msp_alloc(struct mspack_system *a, size_t bytes) {
 #if DEBUG
   /* make uninitialised data obvious */
   char *buf = malloc(bytes + 8);

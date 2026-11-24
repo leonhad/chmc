@@ -156,9 +156,9 @@ namespace chm {
         const uint8_t kGuidData[16] = {0x11, 0xFD, 0x01, 0x7C, 0xAA, 0x7B, 0xD0, 0x11, 0x9E, 0x0C, 0x00, 0xA0, 0xC9, 0x22, 0xE6, 0xEC};
         const uint8_t kGuidItsp[16] = {0x6A, 0x92, 0x02, 0x5D, 0x2E, 0x21, 0xD0, 0x11, 0x9D, 0xF9, 0x00, 0xA0, 0xC9, 0x22, 0xE6, 0xEC};
 
-        const char *const kResetTableName = "::DataSpace/Storage/MSCompressed/Transform/"
+        const auto kResetTableName = "::DataSpace/Storage/MSCompressed/Transform/"
                                             "{7FC28940-9D31-11D0-9B27-00A0C91E9C7C}/InstanceData/ResetTable";
-        const char *const kTransformDir = "::DataSpace/Storage/MSCompressed/Transform/"
+        const auto kTransformDir = "::DataSpace/Storage/MSCompressed/Transform/"
                                           "{7FC28940-9D31-11D0-9B27-00A0C91E9C7C}/InstanceData/";
 
         // ---------------------------------------------------------------------------
@@ -411,7 +411,7 @@ namespace chm {
                 put16(block.data(), 2, static_cast<uint16_t>(count));
                 put32(block.data(), 4, static_cast<uint32_t>(leaves.empty() ? -1 : static_cast<int32_t>(leaves.size() - 1)));
                 put32(block.data(), 8, static_cast<uint32_t>(leaves.empty() ? -1 : static_cast<int32_t>(leaves.size())));
-                leaves.push_back({lastListing, (out.btree.size())});
+                leaves.push_back({lastListing, static_cast<uint32_t>(out.btree.size())});
                 out.btree.insert(out.btree.end(), block.begin(), block.end());
                 std::fill(block.begin(), block.end(), 0);
                 used = 12;
@@ -467,7 +467,7 @@ namespace chm {
             std::vector<IndexItem> level;
             level.reserve(leaves.size());
             for (size_t i = 0; i < leaves.size(); ++i) {
-                level.push_back({indexEntryBytes(leaves[i].lastListing, i), i});
+                level.push_back({indexEntryBytes(leaves[i].lastListing, static_cast<uint32_t>(i)), static_cast<uint32_t>(i)});
             }
             uint32_t treeDepth = 1;
             uint32_t nextBlock = leaves.size();
@@ -830,7 +830,7 @@ namespace chm {
                 if (lastLeafAt != 0) {
                     put32(out.data(), lastLeafAt, out.size());
                 }
-                leaves.push_back({(out.size()), lastWord});
+                leaves.push_back({static_cast<uint32_t>(out.size()), lastWord});
                 out.insert(out.end(), block.begin(), block.end());
                 lastLeafAt = out.size() - kNodeSize;
                 std::fill(block.begin(), block.end(), 0);
@@ -1187,7 +1187,7 @@ namespace chm {
             std::vector<UrlEntry> urlEntries;
             urlEntries.reserve(topics.size());
             for (size_t i = 0; i < topics.size(); ++i) {
-                urlEntries.push_back({makeId(topics[i].local), i, urlSlotOff[i]});
+                urlEntries.push_back({makeId(topics[i].local), static_cast<uint32_t>(i), urlSlotOff[i]});
             }
             std::sort(urlEntries.begin(), urlEntries.end(), [](const UrlEntry &a, const UrlEntry &b) { return a.id < b.id; });
             std::vector<uint32_t> topicUrlTblOff(topics.size(), 0);
@@ -1521,7 +1521,7 @@ namespace chm {
                     const auto it = fst;
                     FtiWord &fw = ftiWords[it->second];
                     if (fw.docs.empty() || fw.docs.back().topic != i) {
-                        fw.docs.push_back({i, {}});
+                        fw.docs.push_back({static_cast<uint32_t>(i), {}});
                     }
                     fw.docs.back().positions.push_back(position);
                 }
