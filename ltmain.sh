@@ -78,7 +78,7 @@ scriptversion=2019-02-19.15; # UTC
 # <https://opensource.org/licenses/MIT>, and GPL version 2 or later
 # <https://www.gnu.org/licenses/gpl-2.0.html>.  You must apply one of
 # these licenses when using or redistributing this software or any of
-# the files within it.  See the URLs above, or the file `LICENSE`
+# the files within it.  See the URLs above, or the file `COPYING`
 # included in the Bootstrap distribution for the full license texts.
 
 # Please report bugs or propose patches to:
@@ -1542,7 +1542,7 @@ func_lt_ver ()
 # <https://opensource.org/licenses/MIT>, and GPL version 2 or later
 # <https://www.gnu.org/licenses/gpl-2.0.html>.  You must apply one of
 # these licenses when using or redistributing this software or any of
-# the files within it.  See the URLs above, or the file `LICENSE`
+# the files within it.  See the URLs above, or the file `COPYING`
 # included in the Bootstrap distribution for the full license texts.
 
 # Please report bugs or propose patches to:
