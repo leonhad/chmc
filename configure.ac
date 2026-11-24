@@ -42,6 +42,21 @@ AC_PROG_MAKE_SET
 AM_PROG_AR
 LT_INIT
 
+dnl libmspack is optional and used only by the test suite.
+have_mspack=no
+m4_ifdef([PKG_PROG_PKG_CONFIG], [
+  PKG_PROG_PKG_CONFIG()
+  m4_ifdef([PKG_CHECK_MODULES], [
+    PKG_CHECK_MODULES([MSPACK], [libmspack], [have_mspack=yes], [have_mspack=no])
+  ])
+])
+AC_SUBST([MSPACK_CFLAGS])
+AC_SUBST([MSPACK_LIBS])
+AM_CONDITIONAL([HAVE_MSPACK], [test "x$have_mspack" = xyes])
+AS_IF([test "x$have_mspack" = xyes],
+      [AC_MSG_NOTICE([libmspack found: the test suite will be built])],
+      [AC_MSG_NOTICE([libmspack not found: the test suite will be skipped])])
+
 AC_CONFIG_FILES([Makefile
                  src/Makefile
 ])

@@ -35,13 +35,13 @@ g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic \
 
 On Windows with LLVM-MinGW, the same command works using `g++` from PATH.
 
-There is also a `Makefile.old` in the repository root:
+There is also a handwritten `Makefile.win` in the repository root:
 
 ```bash
-make                 # builds ../src.exe
-make run             # generates ../example/project.chm
-make clean           # removes objects and executables
-make test                # validates with libmspack (included in the project)
+make -f Makefile.win         # builds chmc.exe
+make -f Makefile.win run     # generates example/project.chm
+make -f Makefile.win clean   # removes objects and executables
+make -f Makefile.win test    # runs the tests when libmspack is available
 ```
 
 ## Usage
@@ -98,19 +98,31 @@ by the decoder.
 
 ## Validation
 
-The source files `chmc` and `test_chm.cpp` use `lzxd.c` and `chmd.c` from
-[libmspack](https://www.cabextract.org.uk/libmspack/) (GitHub mirror: [kyz/libmspack](https://github.com/kyz/libmspack))
-as independent decoders. libmspack is included in the `libmspack/` directory of the project.
+The test suite uses [libmspack](https://www.cabextract.org.uk/libmspack/) (GitHub mirror:
+[kyz/libmspack](https://github.com/kyz/libmspack)) as an independent decoder. libmspack is
+an **optional** dependency: `configure` detects it with `pkg-config`, and the tests are
+built only when it is found. No copy of libmspack is compiled into this project.
 
 ```bash
-make test-lzx   # validates the LZX compressor
-make test-chm   # validates the generated CHM
+./configure
+make
+make check        # builds test_chm when libmspack is available
 ```
 
-The expected output is `OK` for the LZX test and `OK <file>` for each file in the example,
-with `failures=0` at the end. Additionally, the generated CHM was successfully opened in
-the Windows Help Viewer (`hh.exe`), displaying the `HH Parent` window and the title
-`Example CHM`.
+With the handwritten `Makefile.win`, the flags can also be supplied manually:
+
+```bash
+make -f Makefile.win test MSPACK_CFLAGS=-I/path/include MSPACK_LIBS=-lmspack
+```
+
+`test_chm` validates the generated CHM by extracting every file with libmspack's public
+CHM decompressor API, which also exercises the LZX stream. The low-level `test_lzx`
+helper is kept as `src/test_lzx.cpp` for reference only: a system libmspack does not
+export the internal `lzxd_*` API it needs.
+
+The expected output is `OK <file>` for each file in the example, with `failures=0` at
+the end. Additionally, the generated CHM was successfully opened in the Windows Help
+Viewer (`hh.exe`), displaying the `HH Parent` window and the title `Example CHM`.
 
 > **Important:** the quickrefs of PMGL/PMGI chunks must be written in reverse order and
 > relative to the start of the entry area. `libmspack` ignores this table, but `hh.exe`

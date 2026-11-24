@@ -10,44 +10,28 @@ noinst_HEADERS = \
     lzx.h \
     objinst_table.h
 
-MSPACK_DIR = $(top_srcdir)/libmspack
-MSPACK_INC = -I$(MSPACK_DIR)
-
-chmc_CXXFLAGS = -I.. -I. $(MSPACK_INC)
+chmc_CXXFLAGS = -I$(top_srcdir) -I$(top_srcdir)/src
 
 # ---------------------------------------------------------------------------
-# libmspack helper library (static, for tests)
+# Tests: built only when configure finds libmspack
 # ---------------------------------------------------------------------------
 
-noinst_LIBRARIES = libmspack_helper.a
+if HAVE_MSPACK
+check_PROGRAMS = test_chm
 
-libmspack_helper_a_SOURCES = \
-	$(MSPACK_DIR)/chmd.c \
-	$(MSPACK_DIR)/lzxd.c \
-	$(MSPACK_DIR)/system.c \
-	$(MSPACK_DIR)/crc32.c
-
-libmspack_helper_a_CPPFLAGS = $(MSPACK_INC) -I$(top_builddir)
-
-# ---------------------------------------------------------------------------
-# Test binaries (from Makefile.win)
-# ---------------------------------------------------------------------------
-
-check_PROGRAMS = test_lzx test_chm
-
-# test_lzx: validates LZX compression against libmspack decoder
-test_lzx_SOURCES = test_lzx.cpp lzx.cpp
-test_lzx_CXXFLAGS = $(MSPACK_INC) -I.
-test_lzx_LDADD = libmspack_helper.a
-
-# test_chm: validates CHM extraction against libmspack decoder
+# test_chm validates CHM extraction (and therefore the LZX stream) with
+# libmspack's public CHM decompressor API.
 test_chm_SOURCES = test_chm.cpp
-test_chm_CXXFLAGS = $(MSPACK_INC) -I.
-test_chm_LDADD = libmspack_helper.a
+test_chm_CXXFLAGS = $(MSPACK_CFLAGS) -I$(top_srcdir)/src
+test_chm_LDADD = $(MSPACK_LIBS)
 
-# Test execution
 # Bypass automake's test-driver wrapper, which fails on Windows/MinGW shells
 # (e.g. "can't open ../test-driver: Invalid argument" with busybox sh)
 LOG_COMPILER = true
-TESTS = test_lzx test_chm
+TESTS = test_chm
+endif
+
+# Kept for reference only: the system libmspack does not export the internal
+# lzxd_* API required by this low-level test.
+EXTRA_DIST = test_lzx.cpp
 

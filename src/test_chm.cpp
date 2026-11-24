@@ -1,6 +1,5 @@
 extern "C" {
 #include <mspack.h>
-#include <system.h>
 }
 
 #include <filesystem>
@@ -26,7 +25,7 @@ int main(int argc, char **argv)
     const std::string chmPath = argv[1];
     const fs::path sourceDir = argv[2];
 
-    struct mschm_decompressor *chmd = mspack_create_chm_decompressor(mspack_default_system);
+    struct mschm_decompressor *chmd = mspack_create_chm_decompressor(NULL);
     if (!chmd) {
         std::cerr << "failed to create CHM decompressor\n";
         return 2;
