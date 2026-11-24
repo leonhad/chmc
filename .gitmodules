@@ -1,0 +1,3 @@
+[submodule "libmspack"]
+	path = libmspack
+	url = https://github.com/kyz/libmspack

@@ -56,9 +56,9 @@ help:
 	@echo "  test-chm   validates CHM with chmd.c from libmspack"
 
 # ---------------------------------------------------------------------------
-# Tests with libmspack (included in the project)
+# Tests with libmspack (Git submodule)
 # ---------------------------------------------------------------------------
-MSPACK_DIR := libmspack
+MSPACK_DIR := libmspack/libmspack/mspack
 MSPACK_INC := -I$(MSPACK_DIR)
 TEST_LZX   := test_lzx.exe
 TEST_CHM   := test_chm.exe
