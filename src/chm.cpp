@@ -1730,6 +1730,10 @@ namespace chm {
             Chunk cur;
             for (const DirEntry *e: sorted) {
                 const std::vector<uint8_t> enc = encodeDirEntry(*e);
+                if (enc.size() > 4094u - 20u) {
+                    error = "directory entry exceeds PMGL chunk capacity";
+                    return false;
+                }
                 const int quickAfter = (cur.count + 1) % 5 == 0 ? (cur.count + 1) / 5 : cur.count / 5;
                 if (const size_t limit = 4094u - static_cast<size_t>(2 * quickAfter) - 20u; cur.dataLen + enc.size() > limit) {
                     finishPmgl(cur, dir.pmgl.empty() ? -1 : static_cast<int>(dir.pmgl.size() - 1), static_cast<int>(dir.pmgl.size() + 1));

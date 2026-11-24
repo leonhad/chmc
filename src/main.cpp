@@ -20,6 +20,13 @@
 namespace fs = std::filesystem;
 
 namespace {
+    constexpr size_t kMaxInputFileSize = 64u * 1024u * 1024u;
+    constexpr size_t kMaxTotalInputSize = 256u * 1024u * 1024u;
+    constexpr size_t kMaxInputFiles = 100000;
+    constexpr size_t kMaxParsedEntries = 100000;
+    constexpr size_t kMaxNavigationScriptArgumentSize = 64u * 1024u;
+    constexpr size_t kMaxNavigationScriptArgumentBytes = 16u * 1024u * 1024u;
+
     std::string trim(const std::string &s)
     {
         size_t a = 0, b = s.size();
@@ -113,11 +120,17 @@ namespace {
         if (!f) {
             return false;
         }
-        const auto size = f.tellg();
+        const std::streamoff size = f.tellg();
+        if (size < 0 || static_cast<uint64_t>(size) > kMaxInputFileSize) {
+            return false;
+        }
         f.seekg(0, std::ios::beg);
-        out.resize(size);
-        f.read(reinterpret_cast<char *>(out.data()), size);
-        return static_cast<bool>(f);
+        out.resize(static_cast<size_t>(size));
+        if (size == 0) {
+            return true;
+        }
+        f.read(reinterpret_cast<char *>(out.data()), static_cast<std::streamsize>(size));
+        return f.gcount() == static_cast<std::streamsize>(size);
     }
 
     bool readText(const fs::path &p, std::string &out)
@@ -191,6 +204,7 @@ namespace {
         std::istringstream in(text);
         std::string line;
         std::string section;
+        size_t parsedEntries = 0;
         while (std::getline(in, line)) {
             if (!line.empty() && line.back() == '\r') {
                 line.pop_back();
@@ -202,6 +216,12 @@ namespace {
             if (t.front() == '[' && t.back() == ']') {
                 section = lower(trim(t.substr(1, t.size() - 2)));
                 continue;
+            }
+            if (section == "options" || section == "files" || section == "windows") {
+                if (++parsedEntries > kMaxParsedEntries) {
+                    error = "project entry count exceeds the configured limit";
+                    return false;
+                }
             }
             if (section == "options") {
                 const size_t eq = t.find('=');
@@ -526,13 +546,10 @@ namespace {
 
     void markChildren(std::vector<chm::TocEntry> &toc)
     {
-        for (size_t i = 0; i < toc.size(); ++i) {
-            for (size_t j = i + 1; j < toc.size(); ++j) {
-                if (toc[j].depth > toc[i].depth) {
-                    toc[i].hasChildren = true;
-                    break;
-                }
-            }
+        int maxDepth = -1;
+        for (auto it = toc.rbegin(); it != toc.rend(); ++it) {
+            it->hasChildren = maxDepth > it->depth;
+            maxDepth = std::max(maxDepth, it->depth);
         }
     }
 
@@ -548,13 +565,18 @@ namespace {
         int ulDepth = 0;
         chm::TocEntry current;
         bool inLi = false;
+        bool tooManyEntries = false;
         auto flush = [&] {
             if (!inLi) {
                 return;
             }
             current.name = trim(current.name);
             if (!current.local.empty() || !current.name.empty()) {
-                toc.push_back(current);
+                if (toc.size() >= kMaxParsedEntries) {
+                    tooManyEntries = true;
+                } else {
+                    toc.push_back(current);
+                }
             }
             current = chm::TocEntry();
             inLi = false;
@@ -580,6 +602,9 @@ namespace {
                 }
                 pos = end + 1;
             }
+            if (tooManyEntries) {
+                break;
+            }
             if (!inLi) {
                 continue;
             }
@@ -601,6 +626,10 @@ namespace {
             }
         }
         flush();
+        if (tooManyEntries) {
+            error = "table-of-contents entry count exceeds the configured limit";
+            return false;
+        }
         markChildren(toc);
         return true;
     }
@@ -617,13 +646,18 @@ namespace {
         int ulDepth = 0;
         chm::KeywordEntry current;
         bool inLi = false;
+        bool tooManyEntries = false;
         auto flush = [&] {
             if (!inLi) {
                 return;
             }
             current.name = trim(current.name);
             if (!current.local.empty() || !current.name.empty()) {
-                keywords.push_back(current);
+                if (keywords.size() >= kMaxParsedEntries) {
+                    tooManyEntries = true;
+                } else {
+                    keywords.push_back(current);
+                }
             }
             current = chm::KeywordEntry();
             inLi = false;
@@ -649,6 +683,9 @@ namespace {
                 }
                 pos = end + 1;
             }
+            if (tooManyEntries) {
+                break;
+            }
             if (!inLi) {
                 continue;
             }
@@ -667,16 +704,21 @@ namespace {
             }
         }
         flush();
+        if (tooManyEntries) {
+            error = "keyword entry count exceeds the configured limit";
+            return false;
+        }
         return true;
     }
 
     // ---------------------------------------------------------------------------
     // ActiveX and Navigation Scripts
     // ---------------------------------------------------------------------------
-    bool parseActiveXCommands(const std::vector<chm::InputFile> &files, std::vector<chm::ActiveXCommand> &commands, std::vector<chm::NavigationScript> &scripts)
+    bool parseActiveXCommands(const std::vector<chm::InputFile> &files, std::vector<chm::ActiveXCommand> &commands, std::vector<chm::NavigationScript> &scripts, std::string &error)
     {
         // HTML Help ActiveX control classid
         const std::string hhClassid = "adb880a6-d8ff-11cf-9377-00aa003b7a11";
+        size_t totalNavigationArgumentBytes = 0;
 
         for (const auto &[internalName, data] : files) {
             const std::string ext = lower(fs::path(internalName).extension().string());
@@ -757,12 +799,11 @@ namespace {
                     if (paramEnd == std::string::npos) break;
 
                     std::string paramTag = objContent.substr(paramPos, paramEnd - paramPos + 1);
-                    std::string paramTagLower = lower(paramTag);
 
                     std::string paramName, paramValue;
                     if (findAttr(paramTag, "name", paramName)) {
                         paramName = lower(paramName);
-                        findAttr(paramTag.substr(paramTag.find("value", paramName.size())), "value", paramValue);
+                        findAttr(paramTag, "value", paramValue);
                     } else {
                         paramPos += 6;
                         continue;
@@ -794,6 +835,10 @@ namespace {
                 }
 
                 if (!cmd.command.empty()) {
+                    if (commands.size() >= kMaxParsedEntries) {
+                        error = "ActiveX command count exceeds the configured limit";
+                        return false;
+                    }
                     cmd.sourceFile = internalName;
                     commands.push_back(std::move(cmd));
                 }
@@ -859,6 +904,11 @@ namespace {
                         ++parenEnd;
                     }
                     if (depth == 0) {
+                        const size_t argsLength = parenEnd - parenStart - 2;
+                        if (argsLength > kMaxNavigationScriptArgumentSize) {
+                            error = "navigation script arguments exceed the configured per-call limit";
+                            return false;
+                        }
                         std::string args = s.substr(parenStart + 1, parenEnd - parenStart - 2);
                         // Trim whitespace
                         size_t aStart = 0, aEnd = args.size();
@@ -868,6 +918,11 @@ namespace {
 
                         chm::NavigationScript script;
                         script.function = funcName;
+                        if (scripts.size() >= kMaxParsedEntries || args.size() > kMaxNavigationScriptArgumentBytes - totalNavigationArgumentBytes) {
+                            error = "navigation script data exceeds the configured limit";
+                            return false;
+                        }
+                        totalNavigationArgumentBytes += args.size();
                         script.arguments = args;
                         script.sourceFile = internalName;
                         scripts.push_back(std::move(script));
@@ -989,13 +1044,22 @@ int main(int argc, char **argv)
     }
     std::vector<chm::InputFile> files;
     std::set<std::string> names;
+    size_t totalInputSize = 0;
+    std::string inputLimitError;
     auto addFile = [&](const std::string &rel, const bool required) -> bool {
+        if (!inputLimitError.empty()) {
+            return false;
+        }
         if (rel.empty()) {
             return true;
         }
         const std::string name = internalName(rel);
         if (name == "/" || names.count(name)) {
             return true;
+        }
+        if (files.size() >= kMaxInputFiles) {
+            inputLimitError = "input file count exceeds the configured limit";
+            return false;
         }
         auto abs = filePath(rel);
         if (!abs.is_absolute()) {
@@ -1007,6 +1071,18 @@ int main(int argc, char **argv)
             }
             return false;
         }
+        std::error_code fileSizeError;
+        const auto fileSize = fs::file_size(abs, fileSizeError);
+        if (!fileSizeError) {
+            if (fileSize > kMaxInputFileSize) {
+                inputLimitError = "input file exceeds the configured 64 MiB limit: " + abs.string();
+                return false;
+            }
+            if (fileSize > kMaxTotalInputSize - totalInputSize) {
+                inputLimitError = "total input size exceeds the configured 256 MiB limit";
+                return false;
+            }
+        }
         std::vector<uint8_t> data;
         if (!readBytes(abs, data)) {
             if (required) {
@@ -1014,7 +1090,12 @@ int main(int argc, char **argv)
             }
             return false;
         }
+        if (data.size() > kMaxTotalInputSize - totalInputSize) {
+            inputLimitError = "total input size exceeds the configured 256 MiB limit";
+            return false;
+        }
         names.insert(name);
+        totalInputSize += data.size();
         files.push_back({name, std::move(data)});
         return true;
     };
@@ -1030,6 +1111,10 @@ int main(int argc, char **argv)
         addFile(indexRel, true);
     }
     addFile(defaultRel, true);
+    if (!inputLimitError.empty()) {
+        std::cerr << "Error: " << inputLimitError << "\n";
+        return 1;
+    }
 
     if (!parseHhc(base / filePath(contentsRel), opt.toc, error)) {
         std::cerr << "Error: " << error << "\n";
@@ -1042,18 +1127,45 @@ int main(int argc, char **argv)
     for (const chm::TocEntry &e: opt.toc) {
         addFile(e.local, true);
     }
+    if (!inputLimitError.empty()) {
+        std::cerr << "Error: " << inputLimitError << "\n";
+        return 1;
+    }
 
     // Images/CSS referenced by HTML and by hhc/hhk itself.
     std::vector<std::string> pendingAssets;
-    for (const auto &[internalName, data]: files) {
-        for (const std::string &ref: assetReferences(data)) {
+    std::set<std::string> pendingAssetNames;
+    bool tooManyAssets = false;
+    for (const chm::InputFile &file: files) {
+        const auto refs = assetReferences(file.data);
+        for (const std::string &ref: refs) {
             if (isAsset(ref)) {
+                const std::string name = internalName(ref);
+                if (pendingAssetNames.count(name)) {
+                    continue;
+                }
+                if (pendingAssets.size() >= kMaxParsedEntries) {
+                    tooManyAssets = true;
+                    break;
+                }
+                pendingAssetNames.insert(name);
                 pendingAssets.push_back(ref);
             }
         }
+        if (tooManyAssets) {
+            break;
+        }
+    }
+    if (tooManyAssets) {
+        std::cerr << "Error: asset reference count exceeds the configured limit\n";
+        return 1;
     }
     for (const std::string &ref: pendingAssets) {
         addFile(ref, false);
+    }
+    if (!inputLimitError.empty()) {
+        std::cerr << "Error: " << inputLimitError << "\n";
+        return 1;
     }
 
     // Ensure that files referenced by [WINDOWS] are considered.
@@ -1071,9 +1183,16 @@ int main(int argc, char **argv)
             addFile(w.homeFile, false);
         }
     }
+    if (!inputLimitError.empty()) {
+        std::cerr << "Error: " << inputLimitError << "\n";
+        return 1;
+    }
 
     // Parse ActiveX commands and navigation scripts from HTML files.
-    parseActiveXCommands(files, opt.activeXCommands, opt.navigationScripts);
+    if (!parseActiveXCommands(files, opt.activeXCommands, opt.navigationScripts, error)) {
+        std::cerr << "Error: " << error << "\n";
+        return 1;
+    }
 
     if (!chm::build(outPath.string(), files, opt, error)) {
         std::cerr << "Error generating CHM: " << error << "\n";

@@ -4,6 +4,7 @@
 #include <array>
 #include <cstring>
 #include <functional>
+#include <memory>
 #include <queue>
 
 namespace lzx {
@@ -166,21 +167,23 @@ namespace lzx {
                 }
             };
             std::priority_queue<Node *, std::vector<Node *>, Cmp> pq;
-            std::vector<Node *> all;
+            std::vector<std::unique_ptr<Node>> all;
             all.reserve(2 * n);
             for (const int s: syms) {
-                auto nd = new Node{freq[s], s, nullptr, nullptr};
-                all.push_back(nd);
-                pq.push(nd);
+                auto nd = std::make_unique<Node>(Node{freq[s], s, nullptr, nullptr});
+                Node *ptr = nd.get();
+                all.push_back(std::move(nd));
+                pq.push(ptr);
             }
             while (pq.size() > 1) {
                 Node *a = pq.top();
                 pq.pop();
                 Node *b = pq.top();
                 pq.pop();
-                auto nd = new Node{a->w + b->w, -1, a, b};
-                all.push_back(nd);
-                pq.push(nd);
+                auto nd = std::make_unique<Node>(Node{a->w + b->w, -1, a, b});
+                Node *ptr = nd.get();
+                all.push_back(std::move(nd));
+                pq.push(ptr);
             }
             std::function<void(Node *, int)> walk = [&](const Node *nd, const int d) {
                 if (!nd) {
@@ -194,9 +197,6 @@ namespace lzx {
                 walk(nd->r, d + 1);
             };
             walk(pq.top(), 0);
-            for (const Node *nd: all) {
-                delete nd;
-            }
 
             // Limit to maxBits by redistributing Kraft sum.
             int over = 0;
