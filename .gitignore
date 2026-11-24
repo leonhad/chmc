@@ -19,3 +19,4 @@ config.status
 .dirstamp
 *~
 .libs
+libtool
