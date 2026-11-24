@@ -396,9 +396,9 @@ CHM (ITSF)
 
 ---
 
-## 12. Reference Implementation (`../chmc`)
+## 12. Reference Implementation (`../src`)
 
-The `../chmc` directory contains a complete C++17 implementation that generates an ITSF v3 CHM
+The `../src` directory contains a complete C++17 implementation that generates an ITSF v3 CHM
 from pre-existing files. The flow is:
 
 1. read `.hhp`, `.hhc`, and `.hhk`;
@@ -421,10 +421,10 @@ types: `rcHTML` (HTML panel coordinates), `tabOrder` (tab order),
 
 ```bash
 g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic \
-    chmc/main.cpp chmc/chm.cpp chmc/lzx.cpp -o chmc
+    src/main.cpp src/chm.cpp src/lzx.cpp -o src
 
-chmc example/project.hhp          # uses Compiled file= from .hhp
-chmc example/project.hhp output.chm
+src example/project.hhp          # uses Compiled file= from .hhp
+src example/project.hhp output.chm
 ```
 
 ### 12.2 Validation
@@ -450,7 +450,7 @@ native viewer uses it; with wrong quickrefs the file was rejected with
 
 The internal index files are no longer stubs. The builder produces:
 
-- `$OBJINST`: two COM objects and the 256 × 10 byte table from `../chmc`.
+- `$OBJINST`: two COM objects and the 256 × 10 byte table from `../src`.
   The result is 2,715 bytes and is **byte-identical** to the reference HHC blob.
 - `$WWKeywordLinks/{BTree,Data,Map,Property}`: binary index built from the
   `Name`/`Local` pairs in the `.hhk`. The BTree uses 2,048-byte blocks with ordered UTF-16LE words,

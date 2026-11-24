@@ -67,7 +67,7 @@ Observed GUID: `{4662DAAF-D393-11D0-9A56-00C04FB68BF7}`.
 | +0x50 | 2560 | bytes | Table `256 x 10` bytes (`kObjInstTable`). |
 | +0xA50 | 15 | bytes | Observed tail. |
 
-The `256 x 10` table is in `../chmc`. It is used by the HTML Help index/search engine for character classification/mapping.
+The `256 x 10` table is in `../src`. It is used by the HTML Help index/search engine for character classification/mapping.
 
 ### Object 2
 
@@ -389,4 +389,4 @@ For the example `../example`:
 - Free Pascal: `packages/chm/src/chmfiftimain.pas`, `packages/chm/src/htmlindexer.pas`.
 - HTML Help Workshop / hh.exe: observed compatibility behavior.
 - libmspack/chmlib: extraction and CHM structure validation.
-- `../chmc`, `../chmc`.
+- `../src`, `../src`.

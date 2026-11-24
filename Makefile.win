@@ -1,7 +1,7 @@
 # Makefile for the CHM builder in C++17.
 #
 # Main targets:
-#   make            builds chmc.exe
+#   make            builds src.exe
 #   make run        generates example/project.chm
 #   make clean      removes generated objects and executables
 #   make test       validates with libmspack (included in the project)
@@ -18,7 +18,7 @@ LDLIBS   ?=
 DEPFLAGS  = -MMD -MP
 
 TARGET := chmc.exe
-SRC    := chmc/main.cpp chmc/chm.cpp chmc/lzx.cpp
+SRC    := src/main.cpp src/chm.cpp src/lzx.cpp
 OBJ    := $(SRC:.cpp=.o)
 DEPS   := $(OBJ:.o=.d)
 
@@ -72,11 +72,11 @@ test-chm: $(TARGET) $(TEST_CHM)
 	./$(TARGET) example/project.hhp example/project.chm
 	./$(TEST_CHM) example/project.chm example
 
-$(TEST_LZX): chmc chmc lzxd.o mspack_system.o
+$(TEST_LZX): src src lzxd.o mspack_system.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(MSPACK_INC) -o $@ \
 		chmc/test_lzx.cpp chmc/lzx.o lzxd.o mspack_system.o $(LDLIBS)
 
-$(TEST_CHM): chmc chmd.o lzxd.o mspack_system.o crc32.o
+$(TEST_CHM): src chmd.o lzxd.o mspack_system.o crc32.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(MSPACK_INC) -o $@ \
 		chmc/test_chm.cpp chmd.o lzxd.o mspack_system.o crc32.o $(LDLIBS)
 

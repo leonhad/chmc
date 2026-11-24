@@ -30,15 +30,15 @@ See the complete example in `example`.
 
 ```bash
 g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic \
-    main.cpp chm.cpp lzx.cpp -o chmc
+    main.cpp chm.cpp lzx.cpp -o src
 ```
 
 On Windows with LLVM-MinGW, the same command works using `g++` from PATH.
 
-There is also a `Makefile` in the repository root:
+There is also a `Makefile.old` in the repository root:
 
 ```bash
-make                 # builds ../chmc.exe
+make                 # builds ../src.exe
 make run             # generates ../example/project.chm
 make clean           # removes objects and executables
 make test                # validates with libmspack (included in the project)
@@ -47,7 +47,7 @@ make test                # validates with libmspack (included in the project)
 ## Usage
 
 ```bash
-chmc <project.hhp> [output_file.chm]
+src <project.hhp> [output_file.chm]
 ```
 
 If the second argument is omitted, the output name comes from the `Compiled file=` field in the `.hhp`.
@@ -56,7 +56,7 @@ Example:
 
 ```bash
 cd example
-../chmc.exe project.hhp
+../src.exe project.hhp
 ```
 
 The command above generates `project.chm`.

@@ -444,7 +444,7 @@ In a CHM (see `chm.md`):
 
 ---
 
-## 14. Profile Implemented in `../chmc`
+## 14. Profile Implemented in `../src`
 
 The compressor included in this repository uses the most restrictive and interoperable profile for CHM:
 

@@ -918,7 +918,7 @@ namespace {
 
     void printUsage()
     {
-        std::cerr << "Usage: chmc <project.hhp> [output_file.chm]\n"
+        std::cerr << "Usage: src <project.hhp> [output_file.chm]\n"
                   << "\n"
                   << "Reads the .hhp, .hhc, and .hhk files specified in the project and generates\n"
                   << "an ITSF v3 CHM with the content section compressed using LZX. If the output\n"

@@ -7,3 +7,4 @@
 *.chw
 /chm
 *.chm
+/autom4te.cache
