@@ -504,7 +504,8 @@ The compressor was tested against `lzxd_init(..., 16, 2, ...)` / `lzxd_decompres
   https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-patch/
 - **E8 Call Translation** (MS-PATCH):
   https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-patch/e6c8366d-a8c3-4f34-aa5d-56f44f938a09
-- **libmspack — lzxd.c** (Stuart Caie): https://github.com/kyz/libmspack/blob/master/libmspack/mspack/lzxd.c
+- **libmspack** (Stuart Caie): https://www.cabextract.org.uk/libmspack/
+- **libmspack — lzxd.c** (GitHub mirror): https://github.com/kyz/libmspack/blob/master/libmspack/mspack/lzxd.c
 - **libyal — Compression methods**: https://github.com/libyal/libfwnt/blob/main/documentation/Compression%20methods.asciidoc
 - **LZXFMT — Microsoft LZX Data Compression Format** (archived copy)
 - **ReactOS `dll/win32/itss/lzx.c`** — decoder used by ITSS.DLL

@@ -9,10 +9,11 @@
 *.chm
 /autom4te.cache
 Makefile
-libtool
 stamp-h1
 *.log
 config.h
 config.status
 *.Po
 .deps
+*.a
+.dirstamp

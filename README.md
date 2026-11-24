@@ -99,8 +99,8 @@ by the decoder.
 ## Validation
 
 The source files `chmc` and `test_chm.cpp` use `lzxd.c` and `chmd.c` from
-[libmspack](https://github.com/kyz/libmspack) as independent decoders.
-libmspack is included in the `libmspack/` directory of the project.
+[libmspack](https://www.cabextract.org.uk/libmspack/) (GitHub mirror: [kyz/libmspack](https://github.com/kyz/libmspack))
+as independent decoders. libmspack is included in the `libmspack/` directory of the project.
 
 ```bash
 make test-lzx   # validates the LZX compressor

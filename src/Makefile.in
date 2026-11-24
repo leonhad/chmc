@@ -15,6 +15,7 @@
 @SET_MAKE@
 
 
+
 VPATH = @srcdir@
 am__is_gnu_make = { \
   if test -z '$(MAKELEVEL)'; then \
@@ -90,6 +91,8 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 bin_PROGRAMS = chmc$(EXEEXT)
+check_PROGRAMS = test_lzx$(EXEEXT) test_chm$(EXEEXT)
+TESTS = test_lzx$(EXEEXT) test_chm$(EXEEXT)
 subdir = src
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
@@ -106,6 +109,21 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
+LIBRARIES = $(noinst_LIBRARIES)
+ARFLAGS = cru
+AM_V_AR = $(am__v_AR_@AM_V@)
+am__v_AR_ = $(am__v_AR_@AM_DEFAULT_V@)
+am__v_AR_0 = @echo "  AR      " $@;
+am__v_AR_1 = 
+libmspack_helper_a_AR = $(AR) $(ARFLAGS)
+libmspack_helper_a_LIBADD =
+am__dirstamp = $(am__leading_dot)dirstamp
+am_libmspack_helper_a_OBJECTS =  \
+	$(MSPACK_DIR)/libmspack_helper_a-chmd.$(OBJEXT) \
+	$(MSPACK_DIR)/libmspack_helper_a-lzxd.$(OBJEXT) \
+	$(MSPACK_DIR)/libmspack_helper_a-system.$(OBJEXT) \
+	$(MSPACK_DIR)/libmspack_helper_a-crc32.$(OBJEXT)
+libmspack_helper_a_OBJECTS = $(am_libmspack_helper_a_OBJECTS)
 am_chmc_OBJECTS = chmc-lzx.$(OBJEXT) chmc-chm.$(OBJEXT) \
 	chmc-main.$(OBJEXT)
 chmc_OBJECTS = $(am_chmc_OBJECTS)
@@ -116,6 +134,19 @@ am__v_lt_0 = --silent
 am__v_lt_1 = 
 chmc_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(chmc_CXXFLAGS) \
+	$(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+am_test_chm_OBJECTS = test_chm-test_chm.$(OBJEXT)
+test_chm_OBJECTS = $(am_test_chm_OBJECTS)
+test_chm_DEPENDENCIES = libmspack_helper.a
+test_chm_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(test_chm_CXXFLAGS) \
+	$(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+am_test_lzx_OBJECTS = test_lzx-test_lzx.$(OBJEXT) \
+	test_lzx-lzx.$(OBJEXT)
+test_lzx_OBJECTS = $(am_test_lzx_OBJECTS)
+test_lzx_DEPENDENCIES = libmspack_helper.a
+test_lzx_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(test_lzx_CXXFLAGS) \
 	$(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -132,9 +163,33 @@ am__v_at_1 =
 DEFAULT_INCLUDES = 
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = ./$(DEPDIR)/chmc-chm.Po ./$(DEPDIR)/chmc-lzx.Po \
-	./$(DEPDIR)/chmc-main.Po
+am__depfiles_remade =  \
+	$(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-chmd.Po \
+	$(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-crc32.Po \
+	$(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-lzxd.Po \
+	$(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-system.Po \
+	./$(DEPDIR)/chmc-chm.Po ./$(DEPDIR)/chmc-lzx.Po \
+	./$(DEPDIR)/chmc-main.Po ./$(DEPDIR)/test_chm-test_chm.Po \
+	./$(DEPDIR)/test_lzx-lzx.Po ./$(DEPDIR)/test_lzx-test_lzx.Po
 am__mv = mv -f
+COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
+	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+LTCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) \
+	$(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
+	$(AM_CFLAGS) $(CFLAGS)
+AM_V_CC = $(am__v_CC_@AM_V@)
+am__v_CC_ = $(am__v_CC_@AM_DEFAULT_V@)
+am__v_CC_0 = @echo "  CC      " $@;
+am__v_CC_1 = 
+CCLD = $(CC)
+LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+	$(AM_LDFLAGS) $(LDFLAGS) -o $@
+AM_V_CCLD = $(am__v_CCLD_@AM_V@)
+am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
+am__v_CCLD_0 = @echo "  CCLD    " $@;
+am__v_CCLD_1 = 
 CXXCOMPILE = $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
 	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
 LTCXXCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
@@ -153,8 +208,10 @@ AM_V_CXXLD = $(am__v_CXXLD_@AM_V@)
 am__v_CXXLD_ = $(am__v_CXXLD_@AM_DEFAULT_V@)
 am__v_CXXLD_0 = @echo "  CXXLD   " $@;
 am__v_CXXLD_1 = 
-SOURCES = $(chmc_SOURCES)
-DIST_SOURCES = $(chmc_SOURCES)
+SOURCES = $(libmspack_helper_a_SOURCES) $(chmc_SOURCES) \
+	$(test_chm_SOURCES) $(test_lzx_SOURCES)
+DIST_SOURCES = $(libmspack_helper_a_SOURCES) $(chmc_SOURCES) \
+	$(test_chm_SOURCES) $(test_lzx_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -178,7 +235,213 @@ am__define_uniq_tagged_files = \
   unique=`for i in $$list; do \
     if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
   done | $(am__uniquify_input)`
-am__DIST_COMMON = $(srcdir)/Makefile.in $(top_srcdir)/depcomp
+am__tty_colors_dummy = \
+  mgn= red= grn= lgn= blu= brg= std=; \
+  am__color_tests=no
+am__tty_colors = { \
+  $(am__tty_colors_dummy); \
+  if test "X$(AM_COLOR_TESTS)" = Xno; then \
+    am__color_tests=no; \
+  elif test "X$(AM_COLOR_TESTS)" = Xalways; then \
+    am__color_tests=yes; \
+  elif test "X$$TERM" != Xdumb && { test -t 1; } 2>/dev/null; then \
+    am__color_tests=yes; \
+  fi; \
+  if test $$am__color_tests = yes; then \
+    red='[0;31m'; \
+    grn='[0;32m'; \
+    lgn='[1;32m'; \
+    blu='[1;34m'; \
+    mgn='[0;35m'; \
+    brg='[1m'; \
+    std='[m'; \
+  fi; \
+}
+am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
+am__vpath_adj = case $$p in \
+    $(srcdir)/*) f=`echo "$$p" | sed "s|^$$srcdirstrip/||"`;; \
+    *) f=$$p;; \
+  esac;
+am__strip_dir = f=`echo $$p | sed -e 's|^.*/||'`;
+am__install_max = 40
+am__nobase_strip_setup = \
+  srcdirstrip=`echo "$(srcdir)" | sed 's/[].[^$$\\*|]/\\\\&/g'`
+am__nobase_strip = \
+  for p in $$list; do echo "$$p"; done | sed -e "s|$$srcdirstrip/||"
+am__nobase_list = $(am__nobase_strip_setup); \
+  for p in $$list; do echo "$$p $$p"; done | \
+  sed "s| $$srcdirstrip/| |;"' / .*\//!s/ .*/ ./; s,\( .*\)/[^/]*$$,\1,' | \
+  $(AWK) 'BEGIN { files["."] = "" } { files[$$2] = files[$$2] " " $$1; \
+    if (++n[$$2] == $(am__install_max)) \
+      { print $$2, files[$$2]; n[$$2] = 0; files[$$2] = "" } } \
+    END { for (dir in files) print dir, files[dir] }'
+am__base_list = \
+  sed '$$!N;$$!N;$$!N;$$!N;$$!N;$$!N;$$!N;s/\n/ /g' | \
+  sed '$$!N;$$!N;$$!N;$$!N;s/\n/ /g'
+am__uninstall_files_from_dir = { \
+  test -z "$$files" \
+    || { test ! -d "$$dir" && test ! -f "$$dir" && test ! -r "$$dir"; } \
+    || { echo " ( cd '$$dir' && rm -f" $$files ")"; \
+         $(am__cd) "$$dir" && rm -f $$files; }; \
+  }
+am__recheck_rx = ^[ 	]*:recheck:[ 	]*
+am__global_test_result_rx = ^[ 	]*:global-test-result:[ 	]*
+am__copy_in_global_log_rx = ^[ 	]*:copy-in-global-log:[ 	]*
+# A command that, given a newline-separated list of test names on the
+# standard input, print the name of the tests that are to be re-run
+# upon "make recheck".
+am__list_recheck_tests = $(AWK) '{ \
+  recheck = 1; \
+  while ((rc = (getline line < ($$0 ".trs"))) != 0) \
+    { \
+      if (rc < 0) \
+        { \
+          if ((getline line2 < ($$0 ".log")) < 0) \
+	    recheck = 0; \
+          break; \
+        } \
+      else if (line ~ /$(am__recheck_rx)[nN][Oo]/) \
+        { \
+          recheck = 0; \
+          break; \
+        } \
+      else if (line ~ /$(am__recheck_rx)[yY][eE][sS]/) \
+        { \
+          break; \
+        } \
+    }; \
+  if (recheck) \
+    print $$0; \
+  close ($$0 ".trs"); \
+  close ($$0 ".log"); \
+}'
+# A command that, given a newline-separated list of test names on the
+# standard input, create the global log from their .trs and .log files.
+am__create_global_log = $(AWK) ' \
+function fatal(msg) \
+{ \
+  print "fatal: making $@: " msg | "cat >&2"; \
+  exit 1; \
+} \
+function rst_section(header) \
+{ \
+  print header; \
+  len = length(header); \
+  for (i = 1; i <= len; i = i + 1) \
+    printf "="; \
+  printf "\n\n"; \
+} \
+{ \
+  copy_in_global_log = 1; \
+  global_test_result = "RUN"; \
+  while ((rc = (getline line < ($$0 ".trs"))) != 0) \
+    { \
+      if (rc < 0) \
+         fatal("failed to read from " $$0 ".trs"); \
+      if (line ~ /$(am__global_test_result_rx)/) \
+        { \
+          sub("$(am__global_test_result_rx)", "", line); \
+          sub("[ 	]*$$", "", line); \
+          global_test_result = line; \
+        } \
+      else if (line ~ /$(am__copy_in_global_log_rx)[nN][oO]/) \
+        copy_in_global_log = 0; \
+    }; \
+  if (copy_in_global_log) \
+    { \
+      rst_section(global_test_result ": " $$0); \
+      while ((rc = (getline line < ($$0 ".log"))) != 0) \
+      { \
+        if (rc < 0) \
+          fatal("failed to read from " $$0 ".log"); \
+        print line; \
+      }; \
+      printf "\n"; \
+    }; \
+  close ($$0 ".trs"); \
+  close ($$0 ".log"); \
+}'
+# Restructured Text title.
+am__rst_title = { sed 's/.*/   &   /;h;s/./=/g;p;x;s/ *$$//;p;g' && echo; }
+# Solaris 10 'make', and several other traditional 'make' implementations,
+# pass "-e" to $(SHELL), and POSIX 2008 even requires this.  Work around it
+# by disabling -e (using the XSI extension "set +e") if it's set.
+am__sh_e_setup = case $$- in *e*) set +e;; esac
+# Default flags passed to test drivers.
+am__common_driver_flags = \
+  --color-tests "$$am__color_tests" \
+  --enable-hard-errors "$$am__enable_hard_errors" \
+  --expect-failure "$$am__expect_failure"
+# To be inserted before the command running the test.  Creates the
+# directory for the log if needed.  Stores in $dir the directory
+# containing $f, in $tst the test, in $log the log.  Executes the
+# developer- defined test setup AM_TESTS_ENVIRONMENT (if any), and
+# passes TESTS_ENVIRONMENT.  Set up options for the wrapper that
+# will run the test scripts (or their associated LOG_COMPILER, if
+# thy have one).
+am__check_pre = \
+$(am__sh_e_setup);					\
+$(am__vpath_adj_setup) $(am__vpath_adj)			\
+$(am__tty_colors);					\
+srcdir=$(srcdir); export srcdir;			\
+case "$@" in						\
+  */*) am__odir=`echo "./$@" | sed 's|/[^/]*$$||'`;;	\
+    *) am__odir=.;; 					\
+esac;							\
+test "x$$am__odir" = x"." || test -d "$$am__odir" 	\
+  || $(MKDIR_P) "$$am__odir" || exit $$?;		\
+if test -f "./$$f"; then dir=./;			\
+elif test -f "$$f"; then dir=;				\
+else dir="$(srcdir)/"; fi;				\
+tst=$$dir$$f; log='$@'; 				\
+if test -n '$(DISABLE_HARD_ERRORS)'; then		\
+  am__enable_hard_errors=no; 				\
+else							\
+  am__enable_hard_errors=yes; 				\
+fi; 							\
+case " $(XFAIL_TESTS) " in				\
+  *[\ \	]$$f[\ \	]* | *[\ \	]$$dir$$f[\ \	]*) \
+    am__expect_failure=yes;;				\
+  *)							\
+    am__expect_failure=no;;				\
+esac; 							\
+$(AM_TESTS_ENVIRONMENT) $(TESTS_ENVIRONMENT)
+# A shell command to get the names of the tests scripts with any registered
+# extension removed (i.e., equivalently, the names of the test logs, with
+# the '.log' extension removed).  The result is saved in the shell variable
+# '$bases'.  This honors runtime overriding of TESTS and TEST_LOGS.  Sadly,
+# we cannot use something simpler, involving e.g., "$(TEST_LOGS:.log=)",
+# since that might cause problem with VPATH rewrites for suffix-less tests.
+# See also 'test-harness-vpath-rewrite.sh' and 'test-trs-basic.sh'.
+am__set_TESTS_bases = \
+  bases='$(TEST_LOGS)'; \
+  bases=`for i in $$bases; do echo $$i; done | sed 's/\.log$$//'`; \
+  bases=`echo $$bases`
+AM_TESTSUITE_SUMMARY_HEADER = ' for $(PACKAGE_STRING)'
+RECHECK_LOGS = $(TEST_LOGS)
+AM_RECURSIVE_TARGETS = check recheck
+TEST_SUITE_LOG = test-suite.log
+TEST_EXTENSIONS = @EXEEXT@ .test
+LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver
+LOG_COMPILE = $(LOG_COMPILER) $(AM_LOG_FLAGS) $(LOG_FLAGS)
+am__set_b = \
+  case '$@' in \
+    */*) \
+      case '$*' in \
+        */*) b='$*';; \
+          *) b=`echo '$@' | sed 's/\.log$$//'`; \
+       esac;; \
+    *) \
+      b='$*';; \
+  esac
+am__test_logs1 = $(TESTS:=.log)
+am__test_logs2 = $(am__test_logs1:@EXEEXT@.log=.log)
+TEST_LOGS = $(am__test_logs2:.test.log=.log)
+TEST_LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver
+TEST_LOG_COMPILE = $(TEST_LOG_COMPILER) $(AM_TEST_LOG_FLAGS) \
+	$(TEST_LOG_FLAGS)
+am__DIST_COMMON = $(srcdir)/Makefile.in $(top_srcdir)/depcomp \
+	$(top_srcdir)/test-driver
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
@@ -315,11 +578,40 @@ noinst_HEADERS = \
     lzx.h \
     objinst_table.h
 
-chmc_CXXFLAGS = -I.. -I. -I..\libmspack
+MSPACK_DIR = $(top_srcdir)/libmspack
+MSPACK_INC = -I$(MSPACK_DIR)
+chmc_CXXFLAGS = -I.. -I. $(MSPACK_INC)
+
+# ---------------------------------------------------------------------------
+# libmspack helper library (static, for tests)
+# ---------------------------------------------------------------------------
+noinst_LIBRARIES = libmspack_helper.a
+libmspack_helper_a_SOURCES = \
+	$(MSPACK_DIR)/chmd.c \
+	$(MSPACK_DIR)/lzxd.c \
+	$(MSPACK_DIR)/system.c \
+	$(MSPACK_DIR)/crc32.c
+
+libmspack_helper_a_CPPFLAGS = $(MSPACK_INC) -I$(top_builddir)
+
+# test_lzx: validates LZX compression against libmspack decoder
+test_lzx_SOURCES = test_lzx.cpp lzx.cpp
+test_lzx_CXXFLAGS = $(MSPACK_INC) -I.
+test_lzx_LDADD = libmspack_helper.a
+
+# test_chm: validates CHM extraction against libmspack decoder
+test_chm_SOURCES = test_chm.cpp
+test_chm_CXXFLAGS = $(MSPACK_INC) -I.
+test_chm_LDADD = libmspack_helper.a
+
+# Test execution
+# Bypass automake's test-driver wrapper, which fails on Windows/MinGW shells
+# (e.g. "can't open ../test-driver: Invalid argument" with busybox sh)
+LOG_COMPILER = true
 all: all-am
 
 .SUFFIXES:
-.SUFFIXES: .cpp .lo .o .obj
+.SUFFIXES: .c .cpp .lo .log .o .obj .test .test$(EXEEXT) .trs
 $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
@@ -399,25 +691,156 @@ clean-binPROGRAMS:
 	echo " rm -f" $$list; \
 	rm -f $$list
 
+clean-checkPROGRAMS:
+	@list='$(check_PROGRAMS)'; test -n "$$list" || exit 0; \
+	echo " rm -f" $$list; \
+	rm -f $$list || exit $$?; \
+	test -n "$(EXEEXT)" || exit 0; \
+	list=`for p in $$list; do echo "$$p"; done | sed 's/$(EXEEXT)$$//'`; \
+	echo " rm -f" $$list; \
+	rm -f $$list
+
+clean-noinstLIBRARIES:
+	-test -z "$(noinst_LIBRARIES)" || rm -f $(noinst_LIBRARIES)
+$(MSPACK_DIR)/$(am__dirstamp):
+	@$(MKDIR_P) $(MSPACK_DIR)
+	@: > $(MSPACK_DIR)/$(am__dirstamp)
+$(MSPACK_DIR)/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) $(MSPACK_DIR)/$(DEPDIR)
+	@: > $(MSPACK_DIR)/$(DEPDIR)/$(am__dirstamp)
+$(MSPACK_DIR)/libmspack_helper_a-chmd.$(OBJEXT):  \
+	$(MSPACK_DIR)/$(am__dirstamp) \
+	$(MSPACK_DIR)/$(DEPDIR)/$(am__dirstamp)
+$(MSPACK_DIR)/libmspack_helper_a-lzxd.$(OBJEXT):  \
+	$(MSPACK_DIR)/$(am__dirstamp) \
+	$(MSPACK_DIR)/$(DEPDIR)/$(am__dirstamp)
+$(MSPACK_DIR)/libmspack_helper_a-system.$(OBJEXT):  \
+	$(MSPACK_DIR)/$(am__dirstamp) \
+	$(MSPACK_DIR)/$(DEPDIR)/$(am__dirstamp)
+$(MSPACK_DIR)/libmspack_helper_a-crc32.$(OBJEXT):  \
+	$(MSPACK_DIR)/$(am__dirstamp) \
+	$(MSPACK_DIR)/$(DEPDIR)/$(am__dirstamp)
+
+libmspack_helper.a: $(libmspack_helper_a_OBJECTS) $(libmspack_helper_a_DEPENDENCIES) $(EXTRA_libmspack_helper_a_DEPENDENCIES) 
+	$(AM_V_at)-rm -f libmspack_helper.a
+	$(AM_V_AR)$(libmspack_helper_a_AR) libmspack_helper.a $(libmspack_helper_a_OBJECTS) $(libmspack_helper_a_LIBADD)
+	$(AM_V_at)$(RANLIB) libmspack_helper.a
+
 chmc$(EXEEXT): $(chmc_OBJECTS) $(chmc_DEPENDENCIES) $(EXTRA_chmc_DEPENDENCIES) 
 	@rm -f chmc$(EXEEXT)
 	$(AM_V_CXXLD)$(chmc_LINK) $(chmc_OBJECTS) $(chmc_LDADD) $(LIBS)
 
+test_chm$(EXEEXT): $(test_chm_OBJECTS) $(test_chm_DEPENDENCIES) $(EXTRA_test_chm_DEPENDENCIES) 
+	@rm -f test_chm$(EXEEXT)
+	$(AM_V_CXXLD)$(test_chm_LINK) $(test_chm_OBJECTS) $(test_chm_LDADD) $(LIBS)
+
+test_lzx$(EXEEXT): $(test_lzx_OBJECTS) $(test_lzx_DEPENDENCIES) $(EXTRA_test_lzx_DEPENDENCIES) 
+	@rm -f test_lzx$(EXEEXT)
+	$(AM_V_CXXLD)$(test_lzx_LINK) $(test_lzx_OBJECTS) $(test_lzx_LDADD) $(LIBS)
+
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
+	-rm -f $(MSPACK_DIR)/*.$(OBJEXT)
 
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@$(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-chmd.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@$(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-crc32.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@$(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-lzxd.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@$(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-system.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/chmc-chm.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/chmc-lzx.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/chmc-main.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_chm-test_chm.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_lzx-lzx.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_lzx-test_lzx.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
 	@echo '# dummy' >$@-t && $(am__mv) $@-t $@
 
 am--depfiles: $(am__depfiles_remade)
+
+.c.o:
+@am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
+@am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
+@am__fastdepCC_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(COMPILE) -c -o $@ $<
+
+.c.obj:
+@am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.obj$$||'`;\
+@am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ `$(CYGPATH_W) '$<'` &&\
+@am__fastdepCC_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
+
+.c.lo:
+@am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.lo$$||'`;\
+@am__fastdepCC_TRUE@	$(LTCOMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
+@am__fastdepCC_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
+
+$(MSPACK_DIR)/libmspack_helper_a-chmd.o: $(MSPACK_DIR)/chmd.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmspack_helper_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT $(MSPACK_DIR)/libmspack_helper_a-chmd.o -MD -MP -MF $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-chmd.Tpo -c -o $(MSPACK_DIR)/libmspack_helper_a-chmd.o `test -f '$(MSPACK_DIR)/chmd.c' || echo '$(srcdir)/'`$(MSPACK_DIR)/chmd.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-chmd.Tpo $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-chmd.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(MSPACK_DIR)/chmd.c' object='$(MSPACK_DIR)/libmspack_helper_a-chmd.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmspack_helper_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o $(MSPACK_DIR)/libmspack_helper_a-chmd.o `test -f '$(MSPACK_DIR)/chmd.c' || echo '$(srcdir)/'`$(MSPACK_DIR)/chmd.c
+
+$(MSPACK_DIR)/libmspack_helper_a-chmd.obj: $(MSPACK_DIR)/chmd.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmspack_helper_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT $(MSPACK_DIR)/libmspack_helper_a-chmd.obj -MD -MP -MF $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-chmd.Tpo -c -o $(MSPACK_DIR)/libmspack_helper_a-chmd.obj `if test -f '$(MSPACK_DIR)/chmd.c'; then $(CYGPATH_W) '$(MSPACK_DIR)/chmd.c'; else $(CYGPATH_W) '$(srcdir)/$(MSPACK_DIR)/chmd.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-chmd.Tpo $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-chmd.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(MSPACK_DIR)/chmd.c' object='$(MSPACK_DIR)/libmspack_helper_a-chmd.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmspack_helper_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o $(MSPACK_DIR)/libmspack_helper_a-chmd.obj `if test -f '$(MSPACK_DIR)/chmd.c'; then $(CYGPATH_W) '$(MSPACK_DIR)/chmd.c'; else $(CYGPATH_W) '$(srcdir)/$(MSPACK_DIR)/chmd.c'; fi`
+
+$(MSPACK_DIR)/libmspack_helper_a-lzxd.o: $(MSPACK_DIR)/lzxd.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmspack_helper_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT $(MSPACK_DIR)/libmspack_helper_a-lzxd.o -MD -MP -MF $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-lzxd.Tpo -c -o $(MSPACK_DIR)/libmspack_helper_a-lzxd.o `test -f '$(MSPACK_DIR)/lzxd.c' || echo '$(srcdir)/'`$(MSPACK_DIR)/lzxd.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-lzxd.Tpo $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-lzxd.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(MSPACK_DIR)/lzxd.c' object='$(MSPACK_DIR)/libmspack_helper_a-lzxd.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmspack_helper_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o $(MSPACK_DIR)/libmspack_helper_a-lzxd.o `test -f '$(MSPACK_DIR)/lzxd.c' || echo '$(srcdir)/'`$(MSPACK_DIR)/lzxd.c
+
+$(MSPACK_DIR)/libmspack_helper_a-lzxd.obj: $(MSPACK_DIR)/lzxd.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmspack_helper_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT $(MSPACK_DIR)/libmspack_helper_a-lzxd.obj -MD -MP -MF $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-lzxd.Tpo -c -o $(MSPACK_DIR)/libmspack_helper_a-lzxd.obj `if test -f '$(MSPACK_DIR)/lzxd.c'; then $(CYGPATH_W) '$(MSPACK_DIR)/lzxd.c'; else $(CYGPATH_W) '$(srcdir)/$(MSPACK_DIR)/lzxd.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-lzxd.Tpo $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-lzxd.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(MSPACK_DIR)/lzxd.c' object='$(MSPACK_DIR)/libmspack_helper_a-lzxd.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmspack_helper_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o $(MSPACK_DIR)/libmspack_helper_a-lzxd.obj `if test -f '$(MSPACK_DIR)/lzxd.c'; then $(CYGPATH_W) '$(MSPACK_DIR)/lzxd.c'; else $(CYGPATH_W) '$(srcdir)/$(MSPACK_DIR)/lzxd.c'; fi`
+
+$(MSPACK_DIR)/libmspack_helper_a-system.o: $(MSPACK_DIR)/system.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmspack_helper_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT $(MSPACK_DIR)/libmspack_helper_a-system.o -MD -MP -MF $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-system.Tpo -c -o $(MSPACK_DIR)/libmspack_helper_a-system.o `test -f '$(MSPACK_DIR)/system.c' || echo '$(srcdir)/'`$(MSPACK_DIR)/system.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-system.Tpo $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-system.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(MSPACK_DIR)/system.c' object='$(MSPACK_DIR)/libmspack_helper_a-system.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmspack_helper_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o $(MSPACK_DIR)/libmspack_helper_a-system.o `test -f '$(MSPACK_DIR)/system.c' || echo '$(srcdir)/'`$(MSPACK_DIR)/system.c
+
+$(MSPACK_DIR)/libmspack_helper_a-system.obj: $(MSPACK_DIR)/system.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmspack_helper_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT $(MSPACK_DIR)/libmspack_helper_a-system.obj -MD -MP -MF $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-system.Tpo -c -o $(MSPACK_DIR)/libmspack_helper_a-system.obj `if test -f '$(MSPACK_DIR)/system.c'; then $(CYGPATH_W) '$(MSPACK_DIR)/system.c'; else $(CYGPATH_W) '$(srcdir)/$(MSPACK_DIR)/system.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-system.Tpo $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-system.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(MSPACK_DIR)/system.c' object='$(MSPACK_DIR)/libmspack_helper_a-system.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmspack_helper_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o $(MSPACK_DIR)/libmspack_helper_a-system.obj `if test -f '$(MSPACK_DIR)/system.c'; then $(CYGPATH_W) '$(MSPACK_DIR)/system.c'; else $(CYGPATH_W) '$(srcdir)/$(MSPACK_DIR)/system.c'; fi`
+
+$(MSPACK_DIR)/libmspack_helper_a-crc32.o: $(MSPACK_DIR)/crc32.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmspack_helper_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT $(MSPACK_DIR)/libmspack_helper_a-crc32.o -MD -MP -MF $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-crc32.Tpo -c -o $(MSPACK_DIR)/libmspack_helper_a-crc32.o `test -f '$(MSPACK_DIR)/crc32.c' || echo '$(srcdir)/'`$(MSPACK_DIR)/crc32.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-crc32.Tpo $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-crc32.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(MSPACK_DIR)/crc32.c' object='$(MSPACK_DIR)/libmspack_helper_a-crc32.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmspack_helper_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o $(MSPACK_DIR)/libmspack_helper_a-crc32.o `test -f '$(MSPACK_DIR)/crc32.c' || echo '$(srcdir)/'`$(MSPACK_DIR)/crc32.c
+
+$(MSPACK_DIR)/libmspack_helper_a-crc32.obj: $(MSPACK_DIR)/crc32.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmspack_helper_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT $(MSPACK_DIR)/libmspack_helper_a-crc32.obj -MD -MP -MF $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-crc32.Tpo -c -o $(MSPACK_DIR)/libmspack_helper_a-crc32.obj `if test -f '$(MSPACK_DIR)/crc32.c'; then $(CYGPATH_W) '$(MSPACK_DIR)/crc32.c'; else $(CYGPATH_W) '$(srcdir)/$(MSPACK_DIR)/crc32.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-crc32.Tpo $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-crc32.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(MSPACK_DIR)/crc32.c' object='$(MSPACK_DIR)/libmspack_helper_a-crc32.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmspack_helper_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o $(MSPACK_DIR)/libmspack_helper_a-crc32.obj `if test -f '$(MSPACK_DIR)/crc32.c'; then $(CYGPATH_W) '$(MSPACK_DIR)/crc32.c'; else $(CYGPATH_W) '$(srcdir)/$(MSPACK_DIR)/crc32.c'; fi`
 
 .cpp.o:
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
@@ -485,6 +908,48 @@ chmc-main.obj: main.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(chmc_CXXFLAGS) $(CXXFLAGS) -c -o chmc-main.obj `if test -f 'main.cpp'; then $(CYGPATH_W) 'main.cpp'; else $(CYGPATH_W) '$(srcdir)/main.cpp'; fi`
 
+test_chm-test_chm.o: test_chm.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_chm_CXXFLAGS) $(CXXFLAGS) -MT test_chm-test_chm.o -MD -MP -MF $(DEPDIR)/test_chm-test_chm.Tpo -c -o test_chm-test_chm.o `test -f 'test_chm.cpp' || echo '$(srcdir)/'`test_chm.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_chm-test_chm.Tpo $(DEPDIR)/test_chm-test_chm.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='test_chm.cpp' object='test_chm-test_chm.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_chm_CXXFLAGS) $(CXXFLAGS) -c -o test_chm-test_chm.o `test -f 'test_chm.cpp' || echo '$(srcdir)/'`test_chm.cpp
+
+test_chm-test_chm.obj: test_chm.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_chm_CXXFLAGS) $(CXXFLAGS) -MT test_chm-test_chm.obj -MD -MP -MF $(DEPDIR)/test_chm-test_chm.Tpo -c -o test_chm-test_chm.obj `if test -f 'test_chm.cpp'; then $(CYGPATH_W) 'test_chm.cpp'; else $(CYGPATH_W) '$(srcdir)/test_chm.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_chm-test_chm.Tpo $(DEPDIR)/test_chm-test_chm.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='test_chm.cpp' object='test_chm-test_chm.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_chm_CXXFLAGS) $(CXXFLAGS) -c -o test_chm-test_chm.obj `if test -f 'test_chm.cpp'; then $(CYGPATH_W) 'test_chm.cpp'; else $(CYGPATH_W) '$(srcdir)/test_chm.cpp'; fi`
+
+test_lzx-test_lzx.o: test_lzx.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_lzx_CXXFLAGS) $(CXXFLAGS) -MT test_lzx-test_lzx.o -MD -MP -MF $(DEPDIR)/test_lzx-test_lzx.Tpo -c -o test_lzx-test_lzx.o `test -f 'test_lzx.cpp' || echo '$(srcdir)/'`test_lzx.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_lzx-test_lzx.Tpo $(DEPDIR)/test_lzx-test_lzx.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='test_lzx.cpp' object='test_lzx-test_lzx.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_lzx_CXXFLAGS) $(CXXFLAGS) -c -o test_lzx-test_lzx.o `test -f 'test_lzx.cpp' || echo '$(srcdir)/'`test_lzx.cpp
+
+test_lzx-test_lzx.obj: test_lzx.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_lzx_CXXFLAGS) $(CXXFLAGS) -MT test_lzx-test_lzx.obj -MD -MP -MF $(DEPDIR)/test_lzx-test_lzx.Tpo -c -o test_lzx-test_lzx.obj `if test -f 'test_lzx.cpp'; then $(CYGPATH_W) 'test_lzx.cpp'; else $(CYGPATH_W) '$(srcdir)/test_lzx.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_lzx-test_lzx.Tpo $(DEPDIR)/test_lzx-test_lzx.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='test_lzx.cpp' object='test_lzx-test_lzx.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_lzx_CXXFLAGS) $(CXXFLAGS) -c -o test_lzx-test_lzx.obj `if test -f 'test_lzx.cpp'; then $(CYGPATH_W) 'test_lzx.cpp'; else $(CYGPATH_W) '$(srcdir)/test_lzx.cpp'; fi`
+
+test_lzx-lzx.o: lzx.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_lzx_CXXFLAGS) $(CXXFLAGS) -MT test_lzx-lzx.o -MD -MP -MF $(DEPDIR)/test_lzx-lzx.Tpo -c -o test_lzx-lzx.o `test -f 'lzx.cpp' || echo '$(srcdir)/'`lzx.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_lzx-lzx.Tpo $(DEPDIR)/test_lzx-lzx.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='lzx.cpp' object='test_lzx-lzx.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_lzx_CXXFLAGS) $(CXXFLAGS) -c -o test_lzx-lzx.o `test -f 'lzx.cpp' || echo '$(srcdir)/'`lzx.cpp
+
+test_lzx-lzx.obj: lzx.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_lzx_CXXFLAGS) $(CXXFLAGS) -MT test_lzx-lzx.obj -MD -MP -MF $(DEPDIR)/test_lzx-lzx.Tpo -c -o test_lzx-lzx.obj `if test -f 'lzx.cpp'; then $(CYGPATH_W) 'lzx.cpp'; else $(CYGPATH_W) '$(srcdir)/lzx.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_lzx-lzx.Tpo $(DEPDIR)/test_lzx-lzx.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='lzx.cpp' object='test_lzx-lzx.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_lzx_CXXFLAGS) $(CXXFLAGS) -c -o test_lzx-lzx.obj `if test -f 'lzx.cpp'; then $(CYGPATH_W) 'lzx.cpp'; else $(CYGPATH_W) '$(srcdir)/lzx.cpp'; fi`
+
 mostlyclean-libtool:
 	-rm -f *.lo
 
@@ -542,6 +1007,176 @@ cscopelist-am: $(am__tagged_files)
 
 distclean-tags:
 	-rm -f TAGS ID GTAGS GRTAGS GSYMS GPATH tags
+
+# Recover from deleted '.trs' file; this should ensure that
+# "rm -f foo.log; make foo.trs" re-run 'foo.test', and re-create
+# both 'foo.log' and 'foo.trs'.  Break the recipe in two subshells
+# to avoid problems with "make -n".
+.log.trs:
+	rm -f $< $@
+	$(MAKE) $(AM_MAKEFLAGS) $<
+
+# Leading 'am--fnord' is there to ensure the list of targets does not
+# expand to empty, as could happen e.g. with make check TESTS=''.
+am--fnord $(TEST_LOGS) $(TEST_LOGS:.log=.trs): $(am__force_recheck)
+am--force-recheck:
+	@:
+
+$(TEST_SUITE_LOG): $(TEST_LOGS)
+	@$(am__set_TESTS_bases); \
+	am__f_ok () { test -f "$$1" && test -r "$$1"; }; \
+	redo_bases=`for i in $$bases; do \
+	              am__f_ok $$i.trs && am__f_ok $$i.log || echo $$i; \
+	            done`; \
+	if test -n "$$redo_bases"; then \
+	  redo_logs=`for i in $$redo_bases; do echo $$i.log; done`; \
+	  redo_results=`for i in $$redo_bases; do echo $$i.trs; done`; \
+	  if $(am__make_dryrun); then :; else \
+	    rm -f $$redo_logs && rm -f $$redo_results || exit 1; \
+	  fi; \
+	fi; \
+	if test -n "$$am__remaking_logs"; then \
+	  echo "fatal: making $(TEST_SUITE_LOG): possible infinite" \
+	       "recursion detected" >&2; \
+	elif test -n "$$redo_logs"; then \
+	  am__remaking_logs=yes $(MAKE) $(AM_MAKEFLAGS) $$redo_logs; \
+	fi; \
+	if $(am__make_dryrun); then :; else \
+	  st=0;  \
+	  errmsg="fatal: making $(TEST_SUITE_LOG): failed to create"; \
+	  for i in $$redo_bases; do \
+	    test -f $$i.trs && test -r $$i.trs \
+	      || { echo "$$errmsg $$i.trs" >&2; st=1; }; \
+	    test -f $$i.log && test -r $$i.log \
+	      || { echo "$$errmsg $$i.log" >&2; st=1; }; \
+	  done; \
+	  test $$st -eq 0 || exit 1; \
+	fi
+	@$(am__sh_e_setup); $(am__tty_colors); $(am__set_TESTS_bases); \
+	ws='[ 	]'; \
+	results=`for b in $$bases; do echo $$b.trs; done`; \
+	test -n "$$results" || results=/dev/null; \
+	all=`  grep "^$$ws*:test-result:"           $$results | wc -l`; \
+	pass=` grep "^$$ws*:test-result:$$ws*PASS"  $$results | wc -l`; \
+	fail=` grep "^$$ws*:test-result:$$ws*FAIL"  $$results | wc -l`; \
+	skip=` grep "^$$ws*:test-result:$$ws*SKIP"  $$results | wc -l`; \
+	xfail=`grep "^$$ws*:test-result:$$ws*XFAIL" $$results | wc -l`; \
+	xpass=`grep "^$$ws*:test-result:$$ws*XPASS" $$results | wc -l`; \
+	error=`grep "^$$ws*:test-result:$$ws*ERROR" $$results | wc -l`; \
+	if test `expr $$fail + $$xpass + $$error` -eq 0; then \
+	  success=true; \
+	else \
+	  success=false; \
+	fi; \
+	br='==================='; br=$$br$$br$$br$$br; \
+	result_count () \
+	{ \
+	    if test x"$$1" = x"--maybe-color"; then \
+	      maybe_colorize=yes; \
+	    elif test x"$$1" = x"--no-color"; then \
+	      maybe_colorize=no; \
+	    else \
+	      echo "$@: invalid 'result_count' usage" >&2; exit 4; \
+	    fi; \
+	    shift; \
+	    desc=$$1 count=$$2; \
+	    if test $$maybe_colorize = yes && test $$count -gt 0; then \
+	      color_start=$$3 color_end=$$std; \
+	    else \
+	      color_start= color_end=; \
+	    fi; \
+	    echo "$${color_start}# $$desc $$count$${color_end}"; \
+	}; \
+	create_testsuite_report () \
+	{ \
+	  result_count $$1 "TOTAL:" $$all   "$$brg"; \
+	  result_count $$1 "PASS: " $$pass  "$$grn"; \
+	  result_count $$1 "SKIP: " $$skip  "$$blu"; \
+	  result_count $$1 "XFAIL:" $$xfail "$$lgn"; \
+	  result_count $$1 "FAIL: " $$fail  "$$red"; \
+	  result_count $$1 "XPASS:" $$xpass "$$red"; \
+	  result_count $$1 "ERROR:" $$error "$$mgn"; \
+	}; \
+	{								\
+	  echo "$(PACKAGE_STRING): $(subdir)/$(TEST_SUITE_LOG)" |	\
+	    $(am__rst_title);						\
+	  create_testsuite_report --no-color;				\
+	  echo;								\
+	  echo ".. contents:: :depth: 2";				\
+	  echo;								\
+	  for b in $$bases; do echo $$b; done				\
+	    | $(am__create_global_log);					\
+	} >$(TEST_SUITE_LOG).tmp || exit 1;				\
+	mv $(TEST_SUITE_LOG).tmp $(TEST_SUITE_LOG);			\
+	if $$success; then						\
+	  col="$$grn";							\
+	 else								\
+	  col="$$red";							\
+	  test x"$$VERBOSE" = x || cat $(TEST_SUITE_LOG);		\
+	fi;								\
+	echo "$${col}$$br$${std}"; 					\
+	echo "$${col}Testsuite summary"$(AM_TESTSUITE_SUMMARY_HEADER)"$${std}";	\
+	echo "$${col}$$br$${std}"; 					\
+	create_testsuite_report --maybe-color;				\
+	echo "$$col$$br$$std";						\
+	if $$success; then :; else					\
+	  echo "$${col}See $(subdir)/$(TEST_SUITE_LOG)$${std}";		\
+	  if test -n "$(PACKAGE_BUGREPORT)"; then			\
+	    echo "$${col}Please report to $(PACKAGE_BUGREPORT)$${std}";	\
+	  fi;								\
+	  echo "$$col$$br$$std";					\
+	fi;								\
+	$$success || exit 1
+
+check-TESTS: $(check_PROGRAMS)
+	@list='$(RECHECK_LOGS)';           test -z "$$list" || rm -f $$list
+	@list='$(RECHECK_LOGS:.log=.trs)'; test -z "$$list" || rm -f $$list
+	@test -z "$(TEST_SUITE_LOG)" || rm -f $(TEST_SUITE_LOG)
+	@set +e; $(am__set_TESTS_bases); \
+	log_list=`for i in $$bases; do echo $$i.log; done`; \
+	trs_list=`for i in $$bases; do echo $$i.trs; done`; \
+	log_list=`echo $$log_list`; trs_list=`echo $$trs_list`; \
+	$(MAKE) $(AM_MAKEFLAGS) $(TEST_SUITE_LOG) TEST_LOGS="$$log_list"; \
+	exit $$?;
+recheck: all $(check_PROGRAMS)
+	@test -z "$(TEST_SUITE_LOG)" || rm -f $(TEST_SUITE_LOG)
+	@set +e; $(am__set_TESTS_bases); \
+	bases=`for i in $$bases; do echo $$i; done \
+	         | $(am__list_recheck_tests)` || exit 1; \
+	log_list=`for i in $$bases; do echo $$i.log; done`; \
+	log_list=`echo $$log_list`; \
+	$(MAKE) $(AM_MAKEFLAGS) $(TEST_SUITE_LOG) \
+	        am__force_recheck=am--force-recheck \
+	        TEST_LOGS="$$log_list"; \
+	exit $$?
+test_lzx.log: test_lzx$(EXEEXT)
+	@p='test_lzx$(EXEEXT)'; \
+	b='test_lzx'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+test_chm.log: test_chm$(EXEEXT)
+	@p='test_chm$(EXEEXT)'; \
+	b='test_chm'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+.test.log:
+	@p='$<'; \
+	$(am__set_b); \
+	$(am__check_pre) $(TEST_LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_TEST_LOG_DRIVER_FLAGS) $(TEST_LOG_DRIVER_FLAGS) -- $(TEST_LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+@am__EXEEXT_TRUE@.test$(EXEEXT).log:
+@am__EXEEXT_TRUE@	@p='$<'; \
+@am__EXEEXT_TRUE@	$(am__set_b); \
+@am__EXEEXT_TRUE@	$(am__check_pre) $(TEST_LOG_DRIVER) --test-name "$$f" \
+@am__EXEEXT_TRUE@	--log-file $$b.log --trs-file $$b.trs \
+@am__EXEEXT_TRUE@	$(am__common_driver_flags) $(AM_TEST_LOG_DRIVER_FLAGS) $(TEST_LOG_DRIVER_FLAGS) -- $(TEST_LOG_COMPILE) \
+@am__EXEEXT_TRUE@	"$$tst" $(AM_TESTS_FD_REDIRECT)
 distdir: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) distdir-am
 
@@ -576,8 +1211,10 @@ distdir-am: $(DISTFILES)
 	  fi; \
 	done
 check-am: all-am
+	$(MAKE) $(AM_MAKEFLAGS) $(check_PROGRAMS)
+	$(MAKE) $(AM_MAKEFLAGS) check-TESTS
 check: check-am
-all-am: Makefile $(PROGRAMS) $(HEADERS)
+all-am: Makefile $(PROGRAMS) $(LIBRARIES) $(HEADERS)
 installdirs:
 	for dir in "$(DESTDIR)$(bindir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
@@ -602,24 +1239,37 @@ install-strip:
 	    "INSTALL_PROGRAM_ENV=STRIPPROG='$(STRIP)'" install; \
 	fi
 mostlyclean-generic:
+	-test -z "$(TEST_LOGS)" || rm -f $(TEST_LOGS)
+	-test -z "$(TEST_LOGS:.log=.trs)" || rm -f $(TEST_LOGS:.log=.trs)
+	-test -z "$(TEST_SUITE_LOG)" || rm -f $(TEST_SUITE_LOG)
 
 clean-generic:
 
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
 	-test . = "$(srcdir)" || test -z "$(CONFIG_CLEAN_VPATH_FILES)" || rm -f $(CONFIG_CLEAN_VPATH_FILES)
+	-test -z "$(MSPACK_DIR)/$(DEPDIR)/$(am__dirstamp)" || rm -f $(MSPACK_DIR)/$(DEPDIR)/$(am__dirstamp)
+	-test -z "$(MSPACK_DIR)/$(am__dirstamp)" || rm -f $(MSPACK_DIR)/$(am__dirstamp)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-clean-am: clean-binPROGRAMS clean-generic clean-libtool mostlyclean-am
+clean-am: clean-binPROGRAMS clean-checkPROGRAMS clean-generic \
+	clean-libtool clean-noinstLIBRARIES mostlyclean-am
 
 distclean: distclean-am
-		-rm -f ./$(DEPDIR)/chmc-chm.Po
+		-rm -f $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-chmd.Po
+	-rm -f $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-crc32.Po
+	-rm -f $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-lzxd.Po
+	-rm -f $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-system.Po
+	-rm -f ./$(DEPDIR)/chmc-chm.Po
 	-rm -f ./$(DEPDIR)/chmc-lzx.Po
 	-rm -f ./$(DEPDIR)/chmc-main.Po
+	-rm -f ./$(DEPDIR)/test_chm-test_chm.Po
+	-rm -f ./$(DEPDIR)/test_lzx-lzx.Po
+	-rm -f ./$(DEPDIR)/test_lzx-test_lzx.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -665,9 +1315,16 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-		-rm -f ./$(DEPDIR)/chmc-chm.Po
+		-rm -f $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-chmd.Po
+	-rm -f $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-crc32.Po
+	-rm -f $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-lzxd.Po
+	-rm -f $(MSPACK_DIR)/$(DEPDIR)/libmspack_helper_a-system.Po
+	-rm -f ./$(DEPDIR)/chmc-chm.Po
 	-rm -f ./$(DEPDIR)/chmc-lzx.Po
 	-rm -f ./$(DEPDIR)/chmc-main.Po
+	-rm -f ./$(DEPDIR)/test_chm-test_chm.Po
+	-rm -f ./$(DEPDIR)/test_lzx-lzx.Po
+	-rm -f ./$(DEPDIR)/test_lzx-test_lzx.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
@@ -686,21 +1343,23 @@ ps-am:
 
 uninstall-am: uninstall-binPROGRAMS
 
-.MAKE: install-am install-strip
+.MAKE: check-am install-am install-strip
 
-.PHONY: CTAGS GTAGS TAGS all all-am am--depfiles check check-am clean \
-	clean-binPROGRAMS clean-generic clean-libtool cscopelist-am \
-	ctags ctags-am distclean distclean-compile distclean-generic \
-	distclean-libtool distclean-tags distdir dvi dvi-am html \
-	html-am info info-am install install-am install-binPROGRAMS \
-	install-data install-data-am install-dvi install-dvi-am \
-	install-exec install-exec-am install-html install-html-am \
-	install-info install-info-am install-man install-pdf \
-	install-pdf-am install-ps install-ps-am install-strip \
-	installcheck installcheck-am installdirs maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-compile \
-	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
-	tags tags-am uninstall uninstall-am uninstall-binPROGRAMS
+.PHONY: CTAGS GTAGS TAGS all all-am am--depfiles check check-TESTS \
+	check-am clean clean-binPROGRAMS clean-checkPROGRAMS \
+	clean-generic clean-libtool clean-noinstLIBRARIES \
+	cscopelist-am ctags ctags-am distclean distclean-compile \
+	distclean-generic distclean-libtool distclean-tags distdir dvi \
+	dvi-am html html-am info info-am install install-am \
+	install-binPROGRAMS install-data install-data-am install-dvi \
+	install-dvi-am install-exec install-exec-am install-html \
+	install-html-am install-info install-info-am install-man \
+	install-pdf install-pdf-am install-ps install-ps-am \
+	install-strip installcheck installcheck-am installdirs \
+	maintainer-clean maintainer-clean-generic mostlyclean \
+	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
+	pdf pdf-am ps ps-am recheck tags tags-am uninstall \
+	uninstall-am uninstall-binPROGRAMS
 
 .PRECIOUS: Makefile
 

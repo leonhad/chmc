@@ -328,7 +328,7 @@ while the full-text index is built from the page content.
 | Tool / Library           | Language     | Use                                                    |
 |--------------------------|--------------|--------------------------------------------------------|
 | `chmlib` (jedwing)       | C            | Reading/extraction; basis of many free readers         |
-| `libmspack` (CHM decoder)| C            | CHM decoder from the libmspack project (Samba)         |
+| [`libmspack`](https://www.cabextract.org.uk/libmspack/) (CHM decoder)| C | CHM decoder from the libmspack project (Samba)         |
 | Apache Tika (`chm` parser)| Java        | Text and metadata extraction                           |
 | `pychm`                  | Python       | chmlib binding for Python                              |
 | `xCHM`, `KchmViewer`, `ChmSee` | GUI apps | Viewing on Linux/macOS                                 |
@@ -515,6 +515,7 @@ help mapping, external CHM merging).
 - Apache Tika — `org.apache.tika.parser.microsoft.chm` (structures `ChmItsfHeader`, `ChmItspHeader`, etc.)
 - ReactOS `sdk/tools/hhpcomp/chmc/chm.h` (ITSF, PMGL, PMGI, LZXC definitions)
 - libchm / chmlib — https://github.com/jedwing/chmlib
+- libmspack — https://www.cabextract.org.uk/libmspack/
 
 ---
 

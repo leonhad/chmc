@@ -1,5 +1,5 @@
 AC_PREREQ([2.71])
-AC_INIT([chmc],[1.0.0],[leonhad@gmail.com],[pdftools],[https://github.com/leonhad/chmc])
+AC_INIT([chmc],[1.0.0],[leonhad@gmail.com],[chmc],[https://github.com/leonhad/chmc])
 AM_INIT_AUTOMAKE([-Wall tar-ustar no-define nostdinc subdir-objects])
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_MACRO_DIR([m4])

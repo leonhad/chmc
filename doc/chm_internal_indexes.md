@@ -388,5 +388,5 @@ For the example `../example`:
 
 - Free Pascal: `packages/chm/src/chmfiftimain.pas`, `packages/chm/src/htmlindexer.pas`.
 - HTML Help Workshop / hh.exe: observed compatibility behavior.
-- libmspack/chmlib: extraction and CHM structure validation.
+- [libmspack](https://www.cabextract.org.uk/libmspack/): extraction and CHM structure validation.
 - `../src`, `../src`.
