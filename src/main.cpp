@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <cstring>
 #include <memory>
 #include <set>
 #include <sstream>

@@ -18,3 +18,4 @@ config.status
 *.a
 .dirstamp
 *~
+.libs
