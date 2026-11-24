@@ -32,6 +32,13 @@ namespace {
         return s.substr(a, b - a);
     }
 
+    fs::path filePath(const std::string &value)
+    {
+        std::string normalized = value;
+        std::replace(normalized.begin(), normalized.end(), '\\', '/');
+        return fs::path(normalized);
+    }
+
     std::string lower(const std::string &s)
     {
         std::string r;
@@ -936,7 +943,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    const fs::path hhpPath = fs::absolute(fs::path(argv[1]));
+    const fs::path hhpPath = fs::absolute(filePath(argv[1]));
     const fs::path base = hhpPath.parent_path();
     std::string error;
     Hhp hhp;
@@ -953,24 +960,23 @@ int main(int argc, char **argv)
     chm::BuildOptions opt;
     opt.title = option(hhp, "Title", "Untitled");
     opt.defaultTopic = internalName(defaultRel);
-    opt.contentsFile = fs::path(contentsRel).filename().string();
-    opt.indexFile = fs::path(indexRel).filename().string();
+    opt.contentsFile = filePath(contentsRel).filename().string();
+    opt.indexFile = filePath(indexRel).filename().string();
     opt.defaultWindow = option(hhp, "Default Window", "main");
     opt.font = option(hhp, "Default Font", "Arial,9,0");
     opt.lcid = parseLcid(option(hhp, "Language"), 0x0416);
     opt.timestamp = fileTime();
     opt.unixTime = static_cast<uint32_t>(std::time(nullptr));
-    opt.compiledName = fs::path(compiledRel).stem().string();
+    opt.compiledName = filePath(compiledRel).stem().string();
 
     auto startTime = std::chrono::steady_clock::now();
 
-    fs::path outPath = argc > 2 ? fs::path(argv[2]) : base / fs::path(compiledRel);
+    fs::path outPath = argc > 2 ? filePath(argv[2]) : base / filePath(compiledRel);
     if (!outPath.is_absolute()) {
         outPath = fs::absolute(outPath);
     }
-    outPath = fs::weakly_canonical(outPath);
 
-    std::cout << "Compiling: " << outPath.string() << "\n";
+    std::cout << "Compiling: " << argv[1] << "\n";
 
     for (const std::string &wline: hhp.windows) {
         chm::WindowDef w;
@@ -991,7 +997,7 @@ int main(int argc, char **argv)
         if (name == "/" || names.count(name)) {
             return true;
         }
-        auto abs = fs::path(rel);
+        auto abs = filePath(rel);
         if (!abs.is_absolute()) {
             abs = base / abs;
         }
@@ -1025,11 +1031,11 @@ int main(int argc, char **argv)
     }
     addFile(defaultRel, true);
 
-    if (!parseHhc(base / fs::path(contentsRel), opt.toc, error)) {
+    if (!parseHhc(base / filePath(contentsRel), opt.toc, error)) {
         std::cerr << "Error: " << error << "\n";
         return 1;
     }
-    if (!parseHhk(base / fs::path(indexRel), opt.keywords, error)) {
+    if (!parseHhk(base / filePath(indexRel), opt.keywords, error)) {
         std::cerr << "Error: " << error << "\n";
         return 1;
     }
