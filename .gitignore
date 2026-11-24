@@ -17,3 +17,4 @@ config.status
 .deps
 *.a
 .dirstamp
+*~
