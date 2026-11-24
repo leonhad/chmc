@@ -21,11 +21,11 @@ MSPACK_CFLAGS ?= $(shell pkg-config --cflags libmspack 2>/dev/null)
 MSPACK_LIBS   ?= $(shell pkg-config --libs libmspack 2>/dev/null)
 HAVE_MSPACK   := $(if $(strip $(MSPACK_LIBS)),yes,no)
 
-TARGET := chmc.exe
+TARGET := src/chmc.exe
 SRC    := src/main.cpp src/chm.cpp src/lzx.cpp
 OBJ    := $(SRC:.cpp=.o)
 DEPS   := $(OBJ:.o=.d)
-TEST_CHM := test_chm.exe
+TEST_CHM := src/test_chm.exe
 
 .PHONY: all run clean rebuild help test test-chm
 

@@ -38,6 +38,8 @@ AX_CHECK_COMPILE_FLAG([-Wno-padded], [CXXFLAGS="$CXXFLAGS -Wno-padded"])
 AX_CHECK_COMPILE_FLAG([-Wno-switch-enum], [CXXFLAGS="$CXXFLAGS -Wno-switch-enum"])
 
 AC_PROG_INSTALL
+AC_PATH_PROG([DPKG], [dpkg])
+AC_PATH_PROG([DPKG_DEB], [dpkg-deb])
 AC_PROG_MAKE_SET
 AM_PROG_AR
 LT_INIT
